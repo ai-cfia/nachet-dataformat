@@ -16,7 +16,7 @@ from PIL import Image
 import datastore.db.__init__ as db
 from datastore.db.metadata import picture_set as picture_set_data
 from datastore.db.metadata import validator
-from datastore.db.queries import picture, user
+from datastore.db.queries import picture, user, group
 from nachet.db.metadata import picture as picture_data
 
 DB_CONNECTION_STRING = os.environ.get("NACHET_DB_URL")
@@ -211,6 +211,61 @@ class test_user_functions(unittest.TestCase):
         mock_cursor.fetchone.side_effect = Exception("Connection error")
         with self.assertRaises(Exception):
             user.get_container_url(mock_cursor, user_id)
+
+
+class test_group_functions(unittest.TestCase):
+    def setUp(self):
+        self.con = db.connect_db(DB_CONNECTION_STRING, DB_SCHEMA)
+        self.cursor = self.con.cursor()
+        db.create_search_path(self.con, self.cursor, DB_SCHEMA)
+        self.email = "test-gouv.ca"
+
+        self.user_id = user.register_user(self.cursor, self.email)
+
+    def tearDown(self):
+        self.con.rollback()
+        db.end_query(self.con, self.cursor)
+
+    def test_create_group(self):
+        """
+        This test checks if the create_group function returns a valid UUID
+        """
+        group_name = "test_group"
+        group_id = group.create_group(self.cursor,group_name, self.user_id)
+        
+        group_id_fetched = group.get_group_by_name(self.cursor, group_name)
+
+        self.assertTrue(
+            validator.is_valid_uuid(group_id), "The group_id is not a valid UUID"
+        )
+        self.assertEqual(str(group_id), str(group_id_fetched[0][0]), "The group_id is not the same as the fetched group_id")
+
+    def test_add_user_to_group(self):
+        """
+        This test checks if the add_member function adds a member to a group
+        """
+        group_name = "test_group"
+        group_id = group.create_group(self.cursor,group_name, self.user_id)
+
+        group.add_user_to_group(self.cursor, self.user_id, group_id, self.user_id)
+
+        self.assertTrue(group.is_user_in_group(self.cursor, self.user_id,group_id))
+
+    def test_remove_user_from_group(self):
+        """
+        This test checks if the remove_member function removes a member from a group
+        """
+        group_name = "test_group"
+        print(DB_SCHEMA)
+        group_id = group.create_group(self.cursor,group_name, self.user_id)
+
+        group.add_user_to_group(self.cursor, self.user_id, group_id, self.user_id)
+
+        self.assertTrue(group.is_user_in_group(self.cursor, self.user_id,group_id))
+
+        group.remove_user_from_group(self.cursor, self.user_id, group_id)
+
+        self.assertFalse(group.is_user_in_group(self.cursor, self.user_id,group_id))
 
 
 # --------------------  PICTURE FUNCTIONS --------------------

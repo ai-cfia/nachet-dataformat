@@ -5,12 +5,16 @@ and the user container in the blob storage.
 
 import json
 import datastore.db.queries.user as user
+import datastore.db.queries.group as group
 import datastore.db.queries.picture as picture
 import datastore.db.metadata.picture_set as data_picture_set
 import datastore.blob as blob
 import datastore.blob.azure_storage_api as azure_storage
 from azure.storage.blob import BlobServiceClient, ContainerClient
 from dotenv import load_dotenv
+
+from psycopg import Cursor
+from uuid import UUID
 
 load_dotenv()
 
@@ -43,6 +47,22 @@ class User:
 
     def get_email(self):
         return self.email
+
+    def get_id(self):
+        return self.id
+
+    def get_container_client(self):
+        return get_user_container_client(self.id, self.tier)
+
+
+class Group:
+    def __init__(self, name: str, id: UUID = None):
+        self.id = id
+        self.name = name
+        self.tier = "group"
+
+    def get_name(self):
+        return self.name
 
     def get_id(self):
         return self.id
@@ -116,7 +136,9 @@ async def new_user(cursor, email, connection_string, tier="user") -> User:
         raise Exception("Datastore Unhandled Error " + str(e))
 
 
-async def get_user_container_client(user_id, storage_url, account, key, tier="user"):
+async def get_user_container_client(
+    container_uuid: UUID, storage_url, account, key, tier="user"
+):
     """
     Get the container client of a user
 
@@ -128,7 +150,7 @@ async def get_user_container_client(user_id, storage_url, account, key, tier="us
     sas = blob.get_account_sas(account, key)
     # Get the container client
     container_client = await azure_storage.mount_container(
-        storage_url, str(user_id), True, tier, sas
+        storage_url, str(container_uuid), True, tier, sas
     )
     if isinstance(container_client, ContainerClient):
         return container_client
@@ -158,7 +180,9 @@ async def create_picture_set(
                 f"User not found based on the given id: {user_id}"
             )
 
-        picture_set_metadata = data_picture_set.build_picture_set_metadata(user_id, nb_pictures)
+        picture_set_metadata = data_picture_set.build_picture_set_metadata(
+            user_id, nb_pictures
+        )
         picture_set_id = picture.new_picture_set(
             cursor=cursor,
             picture_set_metadata=picture_set_metadata,
@@ -374,7 +398,9 @@ async def upload_pictures(
             )
             # Update the picture metadata in the DB
             data = {
-                "link": azure_storage.build_blob_name(folder_name, str(picture_id), None),
+                "link": azure_storage.build_blob_name(
+                    folder_name, str(picture_id), None
+                ),
                 "description": "Uploaded through the API",
             }
 
@@ -392,4 +418,48 @@ async def upload_pictures(
         raise
     except Exception as e:
         # print(e)
+        raise Exception("Datastore Unhandled Error " + str(e))
+
+
+async def create_group(
+    cursor, group_name: str, user_id: UUID, connection_string: str
+) -> Group:
+    """
+    Create a new group in the database
+
+    Parameters:
+    - cursor: The cursor object to interact with the database.
+    - group_name (str): The name of the group.
+    - user_id (str): The UUID of the user creating the group.
+    """
+    try:
+        group_id = group.create_group(cursor, group_name, user_id)
+        # Create the user container in the blob storage
+        blob_service_client = BlobServiceClient.from_connection_string(
+            connection_string
+        )
+        container_client = blob_service_client.create_container(
+            azure_storage.build_container_name(str(group_id), "group")
+        )
+
+        if not container_client.exists():
+            raise ContainerCreationError(
+                "Error creating the user container: container does not exists"
+            )
+
+        # Link the container to the user in the database
+        pic_set_metadata = data_picture_set.build_picture_set_metadata(
+            user_id=str(user_id), nb_picture=0
+        )
+        pic_set_id = picture.new_picture_set(
+            cursor, pic_set_metadata, str(user_id), group_name
+        )
+        # Basic user container structure
+        response = await azure_storage.create_folder(
+            container_client, str(pic_set_id), "General"
+        )
+        if not response:
+            raise FolderCreationError("Error creating the user folder")
+        return Group(group_name, str(group_id))
+    except Exception as e:
         raise Exception("Datastore Unhandled Error " + str(e))

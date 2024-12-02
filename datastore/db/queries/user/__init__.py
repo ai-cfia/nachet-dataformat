@@ -4,6 +4,7 @@ This module contains the queries related to the user table.
 
 
 from uuid import UUID
+from psycopg import Cursor
 
 
 class UserCreationError(Exception):
