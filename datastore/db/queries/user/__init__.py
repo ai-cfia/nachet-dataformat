@@ -4,6 +4,7 @@ This module contains the queries related to the user table.
 
 
 from uuid import UUID
+from psycopg import Cursor
 
 
 class UserCreationError(Exception):
@@ -18,7 +19,7 @@ class ContainerNotSetError(Exception):
     pass
 
 
-def is_user_registered(cursor, email: str) -> bool:
+def is_user_registered(cursor : Cursor, email: str) -> bool:
     """
     This function checks if a user is registered in the database.
 
@@ -49,7 +50,7 @@ def is_user_registered(cursor, email: str) -> bool:
         )
 
 
-def is_a_user_id(cursor, user_id: str) -> bool:
+def is_a_user_id(cursor : Cursor, user_id: str) -> bool:
     """
     This function checks if a user is registered in the database.
 
@@ -78,7 +79,7 @@ def is_a_user_id(cursor, user_id: str) -> bool:
         raise Exception(f"Error: could not check if {user_id} given is a user id")
 
 
-def get_user_id(cursor, email: str) -> str:
+def get_user_id(cursor : Cursor, email: str) -> str:
     """
     This function retrieves the UUID of a user.
 
@@ -107,7 +108,7 @@ def get_user_id(cursor, email: str) -> str:
         raise Exception("Unhandled Error")
 
 
-def register_user(cursor, email: str) -> UUID:
+def register_user(cursor : Cursor, email: str) -> UUID:
     """
     This function registers a user in the database.
 
@@ -135,7 +136,7 @@ def register_user(cursor, email: str) -> UUID:
         raise UserCreationError(f"Error: user {email} not registered")
 
 
-def link_container(cursor, user_id: str, container_url: str):
+def link_container(cursor : Cursor, user_id: str, container_url: str):
     """
     This function links a container to a user in the database.
 
@@ -170,7 +171,7 @@ def link_container(cursor, user_id: str, container_url: str):
         raise Exception("Error: could not link container to user")
 
 
-def get_container_url(cursor, user_id: str):
+def get_container_url(cursor : Cursor, user_id: str):
     """
     This function retrieves the container url of a user.
 
@@ -205,7 +206,7 @@ def get_container_url(cursor, user_id: str):
         raise Exception("Error: could not retrieve container url")
 
 
-def set_default_picture_set(cursor, user_id: str, default_id: str):
+def set_default_picture_set(cursor : Cursor, user_id: str, default_id: str):
     """
     This function sets the default value of a user.
 
@@ -241,7 +242,7 @@ def set_default_picture_set(cursor, user_id: str, default_id: str):
         raise Exception("Error: could not set default value for user")
 
 
-def get_default_picture_set(cursor, user_id: str):
+def get_default_picture_set(cursor : Cursor, user_id: str):
     """
     This function retrieves the default picture set of a user.
 

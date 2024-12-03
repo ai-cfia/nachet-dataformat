@@ -85,13 +85,13 @@ class test_ml_structure(unittest.TestCase):
         """
         Test the get function.
         """
-
-        # asyncio.run(datastore.import_ml_structure_from_json_version(self.cursor,self.ml_dict))
+        asyncio.run(nachet.import_ml_structure_from_json_version(self.cursor,self.ml_dict))
         ml_structure = asyncio.run(nachet.get_ml_structure(self.cursor))
         # self.assertDictEqual(ml_structure,self.ml_dict)
         for pipeline in self.ml_dict["pipelines"]:
             for key in pipeline:
                 if key != "Accuracy":
+                    #print(ml_structure["pipelines"][0].keys())
                     self.assertTrue(
                         (key in ml_structure["pipelines"][0].keys()),
                         f"Key {key} was not found and expected in the returned dictionary",
@@ -177,11 +177,10 @@ class test_picture(unittest.TestCase):
                 self.cursor, self.user_id, self.pic_encoded, self.container_client
             )
         )
-        model_id = "test_model_id"
 
         result = asyncio.run(
             nachet.register_inference_result(
-                self.cursor, self.user_id, self.inference, picture_id, model_id
+                self.cursor, self.user_id, self.inference, picture_id, None
             )
         )
         # self.cursor.execute("SELECT result FROM inference WHERE picture_id=%s AND model_id=%s",(picture_id,model_id,))
@@ -261,9 +260,10 @@ class test_picture(unittest.TestCase):
                 self.cursor, self.user_id, self.pic_encoded, self.container_client
             )
         )
+        
         inference = asyncio.run(
             nachet.register_inference_result(
-                self.cursor, self.user_id, self.inference, picture_id, "test_model_id"
+                self.cursor, self.user_id, self.inference, str(picture_id), None
             )
         )
         for box in inference["boxes"]:
@@ -274,7 +274,7 @@ class test_picture(unittest.TestCase):
                 self.cursor, str(self.user_id), str(picture_id)
             )
         )
-
+        self.maxDiff = None
         self.assertDictEqual(picture_inference, inference)
 
     def test_get_picture_inference_by_inference_id(self):
@@ -288,7 +288,7 @@ class test_picture(unittest.TestCase):
         )
         inference = asyncio.run(
             nachet.register_inference_result(
-                self.cursor, self.user_id, self.inference, picture_id, "test_model_id"
+                self.cursor, self.user_id, self.inference, picture_id, None
             )
         )
         for box in inference["boxes"]:
@@ -301,7 +301,7 @@ class test_picture(unittest.TestCase):
                 inference_id=str(inference["inference_id"]),
             )
         )
-
+        self.maxDiff = None
         self.assertDictEqual(picture_inference, inference)
 
     def test_get_picture_inference_error_missing_arguments(self):
@@ -612,7 +612,7 @@ class test_picture_set(unittest.TestCase):
         )
         inference = asyncio.run(
             nachet.register_inference_result(
-                self.cursor, self.user_id, self.inference, picture_id, "test_model_id"
+                self.cursor, self.user_id, self.inference, picture_id, None
             )
         )
         asyncio.run(
@@ -690,7 +690,7 @@ class test_picture_set(unittest.TestCase):
                     self.user_id,
                     inference_copy,
                     picture_id,
-                    "test_model_id",
+                    None,
                 )
             )
             inferences.append(inference)
@@ -837,7 +837,7 @@ class test_picture_set(unittest.TestCase):
                     self.user_id,
                     inference_copy,
                     picture_id,
-                    "test_model_id",
+                    None,
                 )
             )
             inferences.append(inference)
@@ -1056,7 +1056,7 @@ class test_feedback(unittest.TestCase):
                 self.cursor, self.user_id, self.pic_encoded, self.container_client
             )
         )
-        model_id = "test_model_id"
+        model_id = None
         self.registered_inference = asyncio.run(
             nachet.register_inference_result(
                 self.cursor, self.user_id, self.inference, picture_id, model_id

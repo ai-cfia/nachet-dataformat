@@ -216,7 +216,7 @@ def get_picture_set_name(cursor, picture_set_id: str):
                 """
         cursor.execute(query, (picture_set_id,))
         name = cursor.fetchone()[0]
-        return name if name is not None else picture_set_id
+        return str(name) if name is not None else str(picture_set_id)
     except Exception:
         raise PictureSetNotFoundError(f"Error: PictureSet not found:{picture_set_id}")
 
