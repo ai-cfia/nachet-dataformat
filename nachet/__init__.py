@@ -272,7 +272,7 @@ async def register_inference_result(
     user_id: str,
     inference_dict,
     picture_id: str,
-    pipeline_id: str,
+    pipeline_id: str = None,
     type: int = 1,
 ):
     """
@@ -291,10 +291,11 @@ async def register_inference_result(
     try:
         trimmed_inference = inference_metadata.build_inference_import(inference_dict)
 
-        model_name = inference_dict["models"][0]["name"]
-        pipeline_id = machine_learning.get_pipeline_id_from_model_name(
-            cursor, model_name
-        )
+        if pipeline_id is None:
+            model_name = inference_dict["models"][0]["name"]
+            pipeline_id = machine_learning.get_pipeline_id_from_model_name(
+                cursor, model_name
+            )
         inference_dict["pipeline_id"] = str(pipeline_id)
 
         inference_id = inference.new_inference(
@@ -351,9 +352,7 @@ async def register_inference_result(
         return inference_dict
     except ValueError:
         raise ValueError("The value of 'totalBoxes' is not an integer.")
-    except Exception as e:
-        print(e.__str__())
-        raise Exception("Unhandled Error")
+
 
 
 async def new_correction_inference_feedback(cursor, inference_dict, type: int = 1):
@@ -612,46 +611,47 @@ async def get_ml_structure(cursor):
 
     Returns a usable json object with the machine learning structure for the FE and BE
     """
-    try:
-        ml_structure = {"pipelines": [], "models": []}
-        pipelines = machine_learning.get_active_pipeline(cursor)
-        if len(pipelines) == 0:
-            raise MLRetrievalError("No Active pipelines found in the database.")
-        model_list = []
-        for pipeline in pipelines:
-            # (id, name, active:bool, is_default: bool, data, model_ids: array)
-            pipeline_name = pipeline[1]
-            pipeline_id = pipeline[0]
-            default = pipeline[3]
-            model_ids = pipeline[5]
-            pipeline_dict = ml_metadata.build_pipeline_export(
-                pipeline[4], pipeline_name, pipeline_id, default, model_ids
+    ml_structure = {"pipelines": [], "models": []}
+    pipelines = machine_learning.get_active_pipeline(cursor)
+    if len(pipelines) == 0:
+        raise MLRetrievalError("No Active pipelines found in the database.")
+    model_list = []
+    for pipeline in pipelines:
+        # (id, name, active:bool, is_default: bool, data, model_ids: array)
+        
+        pipeline_name = pipeline[1]
+        pipeline_id = pipeline[0]
+        default = pipeline[3]
+        if pipeline[4] is not None:
+            pipeline_data =pipeline[4]
+        else:
+            pipeline_data = None
+        model_ids = pipeline[5]
+        pipeline_dict = ml_metadata.build_pipeline_export(
+            pipeline_data, pipeline_name, pipeline_id, default, model_ids
+        )
+        ml_structure["pipelines"].append(pipeline_dict)
+        
+        for model_id in model_ids:
+            if model_id not in model_list:
+                model_list.append(model_id)
+            model_db = machine_learning.get_model(cursor, model_id)
+            # (id, name, endpoint_name, task_name, data,version: str)
+            model_name = model_db[1]
+            model_endpoint = model_db[2]
+            model_task = model_db[3]
+            model_version = model_db[5]
+            model_dict = ml_metadata.build_model_export(
+                model_db[4],
+                model_id,
+                model_name,
+                model_endpoint,
+                model_task,
+                model_version,
             )
-            ml_structure["pipelines"].append(pipeline_dict)
-            for model_id in model_ids:
-                if model_id not in model_list:
-                    model_list.append(model_id)
-                model_db = machine_learning.get_model(cursor, model_id)
-                # (id, name, endpoint_name, task_name, data,version: str)
-                model_name = model_db[1]
-                model_endpoint = model_db[2]
-                model_task = model_db[3]
-                model_version = model_db[5]
-                model_dict = ml_metadata.build_model_export(
-                    model_db[4],
-                    model_id,
-                    model_name,
-                    model_endpoint,
-                    model_task,
-                    model_version,
-                )
-                ml_structure["models"].append(model_dict)
-        return ml_structure
-    except MLRetrievalError:
-        raise
-    except Exception as e:
-        print(e)
-        raise Exception("Datastore Unhandled Error")
+            ml_structure["models"].append(model_dict)
+    return ml_structure
+
 
 
 async def get_seed_info(cursor):
@@ -779,8 +779,6 @@ async def get_picture_inference(
         ValueError,
     ) as e:
         raise e
-    except Exception as e:
-        raise Exception(f"Datastore Unhandled Error : {e}")
 
 
 async def get_picture_blob(cursor, user_id: str, container_client, picture_id: str):

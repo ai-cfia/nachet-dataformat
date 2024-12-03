@@ -126,35 +126,35 @@ def rebuild_inference(cursor, inf) :
     Returns:
     - The inference object as a dict.
     """
-    try :
-        inference_id = str(inf[0])
-        inference_data = json.loads(json.dumps(inf[1]))
-        pipeline_id = str(inf[2])
-        
-        models = []
-        if pipeline_id is not None :
-            pipeline = machine_learning.get_pipeline(cursor, pipeline_id)
-            models_data = pipeline["models"]
-            version = pipeline["version"]
-            for model_name in models_data :
-                model = Model(name=model_name, version=version)
-                models.append(model)
-        
-        objects = inference.get_objects_by_inference(cursor, inference_id)
-        boxes = rebuild_boxes_export(cursor, objects)
+    print(inf)
+    inference_id = str(inf[0])
+    inference_data = json.loads(json.dumps(inf[1]))
+    pipeline_id = str(inf[2])
     
-        inf = Inference(
-            boxes = boxes,
-            filename= inference_data.get("filename"),
-            inference_id = inference_id,
-            labelOccurrence = inference_data.get("labelOccurrence"),
-            totalBoxes= inference_data.get("totalBoxes"),
-            models = models,
-            pipeline_id = pipeline_id
-        )
-        return inf.model_dump()
-    except ValidationError as e :
-        raise e
+    models = []
+    if pipeline_id is not None :
+        print("pipeline_id: ", pipeline_id)
+        pipeline = machine_learning.get_pipeline(cursor, pipeline_id)
+        models_data = pipeline["models"]
+        version = pipeline["version"]
+        for model_name in models_data :
+            model = Model(name=model_name, version=version)
+            models.append(model)
+    
+    objects = inference.get_objects_by_inference(cursor, inference_id)
+    boxes = rebuild_boxes_export(cursor, objects)
+
+    inf = Inference(
+        boxes = boxes,
+        filename= inference_data.get("filename"),
+        inference_id = inference_id,
+        labelOccurrence = inference_data.get("labelOccurrence"),
+        totalBoxes= inference_data.get("totalBoxes"),
+        models = models,
+        pipeline_id = pipeline_id
+    )
+    return inf.model_dump()
+
 
 
 def rebuild_boxes_export(cursor, objects) :

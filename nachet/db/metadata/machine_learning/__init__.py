@@ -68,8 +68,9 @@ def build_pipeline_export(
         "model_name": name,
         "default": default,
     }
-    for key in data:
-        pipeline_db[key] = data[key]
+    if data is not None:
+        for key in data:
+            pipeline_db[key] = data[key]
     return pipeline_db
 
 

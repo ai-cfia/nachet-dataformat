@@ -422,7 +422,7 @@ async def upload_pictures(
 
 
 async def create_group(
-    cursor, group_name: str, user_id: UUID, connection_string: str
+    cursor : Cursor, group_name: str, user_id: UUID, connection_string: str
 ) -> Group:
     """
     Create a new group in the database
