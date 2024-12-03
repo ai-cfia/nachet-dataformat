@@ -1,12 +1,9 @@
 
-from uuid import UUID
+
 import os
 
-import datastore.blob.azure_storage_api as azure_storage_api
 import datastore.blob.__init__ as blob
 import datastore.db.metadata.validator as validator
-from azure.storage.blob import BlobServiceClient, ContainerClient, BlobProperties
-
 
 NACHET_BLOB_ACCOUNT = os.environ.get("NACHET_BLOB_ACCOUNT")
 if NACHET_BLOB_ACCOUNT is None or NACHET_BLOB_ACCOUNT == "":

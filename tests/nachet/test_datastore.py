@@ -177,7 +177,6 @@ class test_picture(unittest.TestCase):
                 self.cursor, self.user_id, self.pic_encoded, self.container_client
             )
         )
-        model_id = None
 
         result = asyncio.run(
             nachet.register_inference_result(
@@ -261,7 +260,6 @@ class test_picture(unittest.TestCase):
                 self.cursor, self.user_id, self.pic_encoded, self.container_client
             )
         )
-        print(self.inference["models"][0]["name"])
         
         inference = asyncio.run(
             nachet.register_inference_result(
@@ -277,11 +275,6 @@ class test_picture(unittest.TestCase):
             )
         )
         self.maxDiff = None
-        print("====================================")
-        print(picture_inference)
-        print("====================================")
-        print(inference)    
-        print("====================================")
         self.assertDictEqual(picture_inference, inference)
 
     def test_get_picture_inference_by_inference_id(self):

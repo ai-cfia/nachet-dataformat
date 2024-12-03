@@ -126,14 +126,12 @@ def rebuild_inference(cursor, inf) :
     Returns:
     - The inference object as a dict.
     """
-    print(inf)
     inference_id = str(inf[0])
     inference_data = json.loads(json.dumps(inf[1]))
     pipeline_id = str(inf[2])
     
     models = []
     if pipeline_id is not None :
-        print("pipeline_id: ", pipeline_id)
         pipeline = machine_learning.get_pipeline(cursor, pipeline_id)
         models_data = pipeline["models"]
         version = pipeline["version"]
