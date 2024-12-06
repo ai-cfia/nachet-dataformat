@@ -7,10 +7,13 @@ import json
 import datastore.db.queries.user as user
 import datastore.db.queries.group as group
 import datastore.db.queries.picture as picture
+import datastore.db.queries.container as container_db
 import datastore.db.metadata.picture_set as data_picture_set
 import datastore.blob as blob
 import datastore.blob.azure_storage_api as azure_storage
 from azure.storage.blob import BlobServiceClient, ContainerClient
+
+from typing import Optional
 from dotenv import load_dotenv
 
 from psycopg import Cursor
@@ -39,36 +42,264 @@ class FolderCreationError(Exception):
     pass
 
 
+class Container():
+    def __init__(self, id: UUID, tier: str = "user",name: str = None, user_id: UUID = None,group_id: UUID = None):
+        if id is None:
+            raise ValueError("The container id must be provided")
+        else:
+            self.id = id
+        self.storage_prefix = tier
+        self.container_client: Optional[ContainerClient]  = None
+        self.name = name
+        self.group_ids = [UUID]
+        if group_id is not None:
+            self.group_ids.append(group_id)
+        self.user_ids = [UUID]
+        if user_id is not None:
+            self.user_ids.append(user_id)
+        self.folders ={}
+
+    # This could be achieved by fetching the storage and performing Azure API calls
+    def fetch_all_folders_metadata(self,cursor:Cursor):
+        """
+        This function retrieves all the folders metadata from the database then stores it in the container object.
+
+        Parameters:
+        - cursor: The cursor object to interact with the database.
+        """
+        db_folders = picture.get_picture_sets_by_container(cursor, self.id)
+        for folder in db_folders:
+            folder_id = folder[0]
+            folder_metadata = data_picture_set.PictureSet(picture_set_id=folder_id, name=folder[1], link=folder[2], pictures=folder[3])
+            self.folders[str(folder_id)] = folder_metadata.model_dump()
+    
+    #Note: The default credentials have a time limit of 5 minutes
+    def get_container_client(self, connection_str: str,credentials:str):
+        """
+        This function gets the container client from the blob storage if the container exists.
+
+        Parameters:
+        - connection_str (str): The connection string to connect with the Azure storage account
+        - credentials (str): The credentials to connect with the Azure storage account
+        """
+        self.container_client = azure_storage.mount_container(
+            connection_string=connection_str, 
+            container_uuid=self.id, 
+            create_container=False,
+            storage_prefix=self.storage_prefix,
+            credentials=credentials)
+
+    def get_id(self):
+        return self.id
+    
+    def add_user(self,cursor:Cursor, user_id: UUID, performed_by: UUID): 
+        """
+        This function adds a user to the container rights.
+
+        Parameters:
+        - cursor: The cursor object to interact with the database.
+        - user_id (str): The UUID of the user.
+        """
+        if not container_db.has_user_access_to_container(cursor, user_id, self.id):
+            if not container_db.has_user_group_access_to_container(cursor, user_id, self.id):
+                # Link the container to the user in the database
+                container_db.add_user_to_container(cursor, user_id, self.id, performed_by)
+        self.user_ids.append(user_id)
+
+    def add_group(self,cursor:Cursor, group_id: UUID, performed_by: UUID): 
+        # Link the container to the user in the database
+        container_db.add_group_to_container(cursor, group_id, self.id, performed_by)
+        self.group_ids.append(group_id)
+
+    async def create_container_storage(self, connection_str: str,credentials:str):
+        """
+        Create a container in the blob storage
+        
+        Parameters:
+        - connection_str (str): The connection string to connect with the Azure storage account
+        - credentials (str): The credentials to connect with the Azure storage account
+        """
+        blob_service_client = BlobServiceClient.from_connection_string(
+            conn_str=connection_str,
+            credential=credentials
+        )
+        container_client = blob_service_client.create_container(
+            azure_storage.build_container_name(str(self.id), self.storage_prefix)
+        )
+        if not container_client.exists():
+            raise ContainerCreationError(
+            "Error creating the user container: container does not exists"
+        )
+        self.container_client = container_client
+    
+    async def create_folder(self,cursor:Cursor, performed_by: UUID, folder_name: str="General",nb_pictures=0)->UUID: 
+        """
+        Create a folder (picture_set) in the container
+
+        Parameters:
+        - cursor: The cursor object to interact with the database.
+        - performed_by (str): The UUID of the user creating the folder.
+        - folder_name (str): The name of the folder.
+        - nb_pictures (int): The number of pictures in the folder.
+
+        Returns:
+        - The UUID of the folder created.
+        """
+        if self.container_client is None:
+            raise ValueError(f"The container client must be set before creating a folder in the Container {self.name}: id:{self.id}")
+        if not user.is_a_user_id(cursor=cursor, user_id=performed_by):
+            raise user.UserNotFoundError(
+                f"User not found based on the given id: {performed_by}"
+            )
+        pic_set_metadata = data_picture_set.build_picture_set_metadata(
+            user_id=performed_by, nb_picture=nb_pictures
+        )
+        pic_set_id = picture.new_picture_set(
+            cursor=cursor, 
+            pic_set_metadata=pic_set_metadata,
+            user_id=performed_by,
+            folder_name=folder_name,
+            container_id=self.id
+        )
+        if (await azure_storage.create_folder(
+            self.container_client, str(pic_set_id), folder_name
+        )):
+            # add the folder to the container structure
+            self.folders[str(pic_set_id)] = []
+            return pic_set_id
+        else:
+            raise FolderCreationError(f"Error creating the folder {folder_name} in the Container {self.name}: id:{self.id}")
+
+    async def upload_pictures(self,cursor:Cursor, user_id: UUID, hashed_pictures, picture_set_id: UUID=None)->list[UUID]:
+        """
+        Upload a picture that we don't know the seed to the user container
+
+        Parameters:
+        - cursor: The cursor object to interact with the database.
+        - user_id (str): The UUID of the user.
+        - hashed_pictures ([str]): The images to upload.
+        - picture_set_id: The id of the picture set to upload the pictures to.
+        """
+        # check if the user was added to the Container rights
+        if user_id not in self.user_ids:
+            raise UserNotOwnerError(
+                f"User can't access this Container, user uuid :{user_id}, Container id : {self.id}"
+            )
+        # Create a folder if not provided
+        if picture_set_id is None:
+            picture_set_id= self.create_folder(
+                cursor =cursor, 
+                performed_by=user_id,
+                folder_name=None,
+                nb_pictures=len(hashed_pictures)
+            )
+        pic_ids = []
+        for picture_hash in hashed_pictures:
+            link = azure_storage.build_blob_name(
+                str(self.id), str(picture_set_id), picture_hash
+            )
+            description = "Uploaded through the API"
+            picture_metadata = data_picture_set.PictureMetadata(
+                link=link,
+                description=description
+            )
+            # Create picture instance in DB
+            picture_id = picture.new_picture_unknown(
+                cursor=cursor,
+                picture=picture_metadata,
+                nb_objects=len(hashed_pictures),
+                picture_set_id=picture_set_id,
+            )
+            # Upload the picture to the Blob Storage
+            response = await azure_storage.upload_image(
+                self.container_client,
+                str(picture_set_id),
+                str(picture_set_id),
+                picture_hash,
+                str(picture_id),
+            )
+            if not response:
+                raise BlobUploadError("Error uploading the picture")
+            pic_ids.append(picture_id)
+        return pic_ids
+
 class User:
-    def __init__(self, email: str, id: str = None, tier: str = "user"):
+    def __init__(self, email: str, id: UUID = None, tier: str = "user"):
+        if id is None:
+            raise ValueError("The user id must be provided")
         self.id = id
         self.email = email
         self.tier = tier
+        self.containers = Optional[list[Container]] = None
 
     def get_email(self):
         return self.email
 
     def get_id(self):
         return self.id
+    
+    
+    async def create_user_container(self,cursor:Cursor, connection_str:str, name:str, user_id:UUID, is_public=False, storage_prefix="user") -> Container:
+        """
+        This function creates a container in the database and the blob storage.
+        """
+        container_id = container_db.create_container(
+            cursor=cursor, name=name, user_id=user_id, is_public=is_public, storage_prefix=storage_prefix
+        )
+        container_obj = Container(container_id, storage_prefix, name, user_id)
 
-    def get_container_client(self):
-        return get_user_container_client(self.id, self.tier)
+        container_obj.create_container_storage(connection_str=connection_str)
+        container_obj.add_user(cursor, user_id, user_id)
+        container_obj.create_folder(cursor, user_id)
+        return container_obj
+        
+    def fetch_all_containers(self,cursor:Cursor, connection_str:str,credentials:str):
+        db_containers = container_db.get_user_containers(cursor, self.id)
+        for container in db_containers:
+            if container[1] is None:
+                name = container[3]
+            else:
+                name = container[1]
+            container_obj = Container(id=container[0], tier=container[4], name=name, user_id=self.id)
+            container_obj.get_container_client(connection_str=connection_str,credentials=credentials)
+            container_obj.fetch_all_folders_metadata(cursor)
+            self.add_container(container_obj)
+
+    def add_container(self, container: Container):
+        if self.containers is None:
+            self.containers = [container]
+        else:
+            self.containers.append(container)
 
 
 class Group:
     def __init__(self, name: str, id: UUID = None):
+        if id is None:
+            raise ValueError("The group id must be provided")
         self.id = id
         self.name = name
         self.tier = "group"
+        self.group_container = None
 
     def get_name(self):
         return self.name
 
     def get_id(self):
         return self.id
-
-    def get_container_client(self):
-        return get_user_container_client(self.id, self.tier)
+    
+    async def create_group_container(self,cursor:Cursor, connection_str:str, name:str, user_id:UUID, is_public=False, storage_prefix="group") -> Container:
+        """
+        This function creates a container in the database and the blob storage.
+        """
+        container_id = container_db.create_container(
+            cursor=cursor, name=name, user_id=user_id, is_public=is_public, storage_prefix=storage_prefix
+        )
+        container_obj = Container(container_id, storage_prefix, name, user_id)
+        container_obj.create_container_storage(connection_str=connection_str)
+        container_obj.add_group(cursor, self.id, user_id)
+        container_obj.create_folder(cursor, user_id)
+        self.container = container_obj
+        return container_obj
 
 
 async def get_user(cursor, email) -> User:
@@ -80,10 +311,11 @@ async def get_user(cursor, email) -> User:
     - cursor: The cursor object to interact with the database.
     """
     user_id = user.get_user_id(cursor, email)
-    return User(email, user_id)
+    return User(email=email, id=user_id, tier="user")
 
 
-async def new_user(cursor, email, connection_string, tier="user") -> User:
+
+async def new_user(cursor:Cursor, email:str, connection_string, tier="user") -> User:
     """
     Create a new user in the database and blob storage.
 
@@ -97,34 +329,18 @@ async def new_user(cursor, email, connection_string, tier="user") -> User:
         if user.is_user_registered(cursor, email):
             raise UserAlreadyExistsError("User already exists")
         user_uuid = user.register_user(cursor, email)
+        # Create the user object
+        user_obj = User(email, user_uuid, tier)        
         # Create the user container in the blob storage
-        blob_service_client = BlobServiceClient.from_connection_string(
-            connection_string
-        )
-        container_client = blob_service_client.create_container(
-            azure_storage.build_container_name(str(user_uuid), "user")
-        )
-
-        if not container_client.exists():
-            raise ContainerCreationError(
-                "Error creating the user container: container does not exists"
-            )
-
-        # Link the container to the user in the database
-        pic_set_metadata = data_picture_set.build_picture_set_metadata(
-            user_id=user_uuid, nb_picture=0
-        )
-        pic_set_id = picture.new_picture_set(
-            cursor, pic_set_metadata, user_uuid, "General"
-        )
-        user.set_default_picture_set(cursor, user_uuid, pic_set_id)
-        # Basic user container structure
-        response = await azure_storage.create_folder(
-            container_client, str(pic_set_id), "General"
-        )
-        if not response:
-            raise FolderCreationError("Error creating the user folder")
-        return User(email, user_uuid)
+        container_obj = await User.create_user_container(
+            cursor=cursor, 
+            connection_string=connection_string, 
+            name=None,
+            user_id=user_uuid,
+            is_public=False,
+            storage_prefix=tier)
+        user_obj.add_container(container_obj)
+        return user_obj
     except azure_storage.CreateDirectoryError as e:
         raise FolderCreationError("Error creating the user folder:" + str(e))
     except UserAlreadyExistsError:
@@ -135,84 +351,7 @@ async def new_user(cursor, email, connection_string, tier="user") -> User:
         # print(e)
         raise Exception("Datastore Unhandled Error " + str(e))
 
-
-async def get_user_container_client(
-    container_uuid: UUID, storage_url, account, key, tier="user"
-):
-    """
-    Get the container client of a user
-
-    Parameters:
-    - user_id (int): The id of the user.
-
-    Returns: ContainerClient object
-    """
-    sas = blob.get_account_sas(account, key)
-    # Get the container client
-    container_client = await azure_storage.mount_container(
-        storage_url, str(container_uuid), True, tier, sas
-    )
-    if isinstance(container_client, ContainerClient):
-        return container_client
-
-
-async def create_picture_set(
-    cursor, container_client, nb_pictures: int, user_id: str, folder_name=None
-):
-    """
-    Create a picture_set in the database and a related folder in the blob storage
-
-    Args:
-        cursor: The cursor object to interact with the database.
-        container_client: The container client of the user.
-        nb_pictures (int): number of picture that the picture set should be related to
-        user_id (str): id of the user creating this picture set
-        folder_name : name of the folder/picture set
-        blob_name: customize blob name to create the folder in blob storage. Should look like path for a json file, example : {...}/{...}/{...}.json
-
-    Returns:
-        picture_set_id : uuid of the new picture set
-    """
-    try:
-
-        if not user.is_a_user_id(cursor=cursor, user_id=user_id):
-            raise user.UserNotFoundError(
-                f"User not found based on the given id: {user_id}"
-            )
-
-        picture_set_metadata = data_picture_set.build_picture_set_metadata(
-            user_id, nb_pictures
-        )
-        picture_set_id = picture.new_picture_set(
-            cursor=cursor,
-            picture_set_metadata=picture_set_metadata,
-            user_id=user_id,
-            folder_name=folder_name,
-        )
-
-        folder_created = await azure_storage.create_folder(
-            container_client, str(picture_set_id), folder_name
-        )
-        if not folder_created:
-            raise FolderCreationError(
-                f"Error while creating this folder : {picture_set_id}"
-            )
-
-        return picture_set_id
-    except (
-        user.UserNotFoundError,
-        FolderCreationError,
-        data_picture_set.PictureSetCreationError,
-        picture.PictureSetCreationError,
-        azure_storage.CreateDirectoryError,
-    ) as e:
-        raise e
-    except Exception as e:
-        raise BlobUploadError(
-            "An error occured during the upload of the picture set: " + str(e)
-        )
-
-
+# Depracated, soon to be deleted
 async def get_picture_sets_info(cursor, user_id: str):
     """This function retrieves the picture sets names and number of pictures from the database.
 
@@ -232,7 +371,7 @@ async def get_picture_sets_info(cursor, user_id: str):
         result[str(picture_set_id)] = [picture_set_name, nb_picture]
     return result
 
-
+# Depracated, soon to be deleted
 async def get_picture_set_pictures(cursor, user_id, picture_set_id, container_client):
     """
     This function retrieves the pictures of a picture set from the database.
@@ -294,7 +433,7 @@ async def get_picture_set_pictures(cursor, user_id, picture_set_id, container_cl
         # print(e)
         raise Exception("Datastore Unhandled Error " + str(e))
 
-
+# Depracated, soon to be deleted
 async def delete_picture_set_permanently(
     cursor, user_id, picture_set_id, container_client
 ):
@@ -347,7 +486,7 @@ async def delete_picture_set_permanently(
         # print(e)
         raise Exception("Datastore Unhandled Error " + str(e))
 
-
+# Depracated, soon to be deleted
 async def upload_pictures(
     cursor, user_id, hashed_pictures, container_client, picture_set_id=None
 ):
@@ -431,35 +570,38 @@ async def create_group(
     - cursor: The cursor object to interact with the database.
     - group_name (str): The name of the group.
     - user_id (str): The UUID of the user creating the group.
+    - connection_string: The connection string to connect with the Azure storage account
     """
     try:
         group_id = group.create_group(cursor, group_name, user_id)
+        group_obj = Group(group_name, group_id)
         # Create the user container in the blob storage
-        blob_service_client = BlobServiceClient.from_connection_string(
-            connection_string
-        )
-        container_client = blob_service_client.create_container(
-            azure_storage.build_container_name(str(group_id), "group")
-        )
-
-        if not container_client.exists():
-            raise ContainerCreationError(
-                "Error creating the user container: container does not exists"
-            )
-
-        # Link the container to the user in the database
-        pic_set_metadata = data_picture_set.build_picture_set_metadata(
-            user_id=str(user_id), nb_picture=0
-        )
-        pic_set_id = picture.new_picture_set(
-            cursor, pic_set_metadata, str(user_id), group_name
-        )
-        # Basic user container structure
-        response = await azure_storage.create_folder(
-            container_client, str(pic_set_id), "General"
-        )
-        if not response:
-            raise FolderCreationError("Error creating the user folder")
-        return Group(group_name, str(group_id))
+        if connection_string is not None:
+            group_obj.create_group_container(
+                cursor=cursor, 
+                connection_str=connection_string, 
+                name=None, 
+                user_id=user_id,
+                is_public=False,
+                storage_prefix="group")
+        return group_obj
     except Exception as e:
         raise Exception("Datastore Unhandled Error " + str(e))
+
+async def create_container(
+    cursor: Cursor, connection_str:str, container_name :str=None,user_id:UUID=None,is_public=False,storage_prefix="user",add_user_to_storage : bool = False) -> Container:
+    """
+    This function creates a container in the database and the blob storage.
+    """
+    if user_id is None:
+        raise ValueError("The user id must be provided")
+    container_id = container_db.create_container(
+        cursor=cursor, name=container_name, user_id=user_id, is_public=is_public, storage_prefix=storage_prefix
+    )
+    container_obj = Container(container_id, storage_prefix, container_name, user_id)
+
+    container_obj.create_container_storage(connection_str=connection_str)
+    if add_user_to_storage:
+        container_obj.add_user(cursor, user_id, user_id)
+    container_obj.create_folder(cursor, user_id)
+    return container_obj

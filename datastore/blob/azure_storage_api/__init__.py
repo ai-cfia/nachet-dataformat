@@ -107,7 +107,7 @@ async def mount_container(
     connection_string,
     container_uuid,
     create_container=True,
-    tier="user",
+    storage_prefix="user",
     credentials="",
 ):
     """
@@ -127,7 +127,7 @@ async def mount_container(
             conn_str=connection_string, credential=credentials
         )
         if blob_service_client:
-            container_name = build_container_name(str(container_uuid), tier)
+            container_name = build_container_name(str(container_uuid), storage_prefix)
             container_client = blob_service_client.get_container_client(container_name)
             if container_client.exists():
                 return container_client

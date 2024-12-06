@@ -2,23 +2,22 @@
 DO
 $do$
 BEGIN
-IF (EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = 'nachet_0.0.10')) THEN
+IF (EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = 'nachet_0.1.1')) THEN
 
-    
 drop schema "nachet_0.1.1" cascade;
 create schema "nachet_0.1.1";
 
     CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 
-        CREATE TABLE "nachet_0.1.1"."users" (
+    CREATE TABLE "nachet_0.1.1"."users" (
     "id" uuid PRIMARY KEY DEFAULT uuid_.uuid_generate_v4(),
     "email" text NOT NULL UNIQUE,
     "registration_date" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" timestamp
     );
 
-    Create table "nachet_0.1.1"."group" (
+    Create table "nachet_0.1.1"."groups" (
         "id" uuid NOT NULL DEFAULT uuid_.uuid_generate_v4() PRIMARY KEY,
         "name" text NOT NULL,
         "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -29,9 +28,40 @@ create schema "nachet_0.1.1";
     Create table "nachet_0.1.1"."user_group" (
         "id" uuid NOT NULL DEFAULT uuid_.uuid_generate_v4() PRIMARY KEY,
         "user_id" uuid NOT NULL REFERENCES "nachet_0.1.1".users(id),
-        "group_id" uuid NOT NULL REFERENCES "nachet_0.1.1".group(id),
+        "group_id" uuid NOT NULL REFERENCES "nachet_0.1.1".groups(id),
         "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "assigned_by_id" uuid NOT NULL REFERENCES "nachet_0.1.1".users(id)
+    );
+
+    CREATE TABLE "nachet_0.1.1"."container" (
+        "id" uuid NOT NULL DEFAULT uuid_.uuid_generate_v4() PRIMARY KEY,
+        "name" text,
+        "is_public" boolean NOT NULL DEFAULT false,
+        "storage_prefix" text default 'user',
+        "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "created_by_id" uuid NOT NULL REFERENCES "nachet_0.1.1".users(id),
+        "last_updated_by_id" uuid NOT NULL REFERENCES "nachet_0.1.1".users(id)
+    );
+
+    CREATE TABLE "nachet_0.1.1"."container_user" (
+        "id" uuid NOT NULL DEFAULT uuid_.uuid_generate_v4() PRIMARY KEY,
+        "user_id" uuid NOT NULL REFERENCES "nachet_0.1.1".users(id) ON DELETE cascade,
+        "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "created_by_id" uuid NOT NULL REFERENCES "nachet_0.1.1".users(id) ON DELETE SET NULL,
+        "last_updated_by_id" uuid NOT NULL REFERENCES "nachet_0.1.1".users(id) ON DELETE SET NULL,
+        "container_id" uuid NOT NULL REFERENCES "nachet_0.1.1".container(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE "nachet_0.1.1"."container_group" (
+        "id" uuid NOT NULL DEFAULT uuid_.uuid_generate_v4() PRIMARY KEY,
+        "group_id" uuid NOT NULL REFERENCES "nachet_0.1.1".groups(id) ON DELETE cascade,
+        "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "created_by_id" uuid NOT NULL REFERENCES "nachet_0.1.1".users(id) ON DELETE SET NULL,
+        "last_updated_by_id" uuid NOT NULL REFERENCES "nachet_0.1.1".users(id) ON DELETE SET NULL,
+        "container_id" uuid NOT NULL REFERENCES "nachet_0.1.1".container(id) ON DELETE CASCADE
     );
 
     CREATE TABLE "nachet_0.1.1"."picture_set" (
@@ -39,7 +69,8 @@ create schema "nachet_0.1.1";
         "picture_set" json NOT NULL,
         "owner_id" uuid NOT NULL REFERENCES "nachet_0.1.1".users(id),
         "upload_date" date NOT NULL DEFAULT current_timestamp,
-        "name" text
+        "name" text,
+        "container_id" uuid NOT NULL REFERENCES "nachet_0.1.1".container(id) ON DELETE CASCADE
     );
     
     CREATE TABLE "nachet_0.1.1"."picture" (
@@ -227,7 +258,7 @@ EXECUTE FUNCTION verified_inference();
     (m.endpoint_name='Seed-detector' and p.name='Swin transformer') or
    	(m.endpoint_name='Swin' and p.name='Swin transformer')); 
 
-    CREATE OR REPLACE FUNCTION "nachet_0.0.11".picture_set_default_name() 
+    CREATE OR REPLACE FUNCTION "nachet_0.1.1".picture_set_default_name() 
     RETURNS TRIGGER 
     LANGUAGE plpgsql 
     AS $$
@@ -240,33 +271,10 @@ EXECUTE FUNCTION verified_inference();
     $$;
 
     CREATE TRIGGER picture_set_default_name_trigger 
-    BEFORE INSERT ON "nachet_0.0.11".picture_set
+    BEFORE INSERT ON "nachet_0.1.1".picture_set
     FOR EACH ROW 
     WHEN (NEW.name IS NULL)
-    EXECUTE FUNCTION "nachet_0.0.11".picture_set_default_name();
-
-    CREATE OR REPLACE FUNCTION verified_inference() RETURNS TRIGGER LANGUAGE plpgsql AS $$
-    BEGIN
-        IF NEW.verified = true THEN
-            INSERT INTO picture_seed (picture_id, seed_id)
-            SELECT 
-                New.picture_id, 
-                so.seed_id  
-            FROM object obj 
-                LEFT JOIN seed_obj so 
-                ON so.id = obj.verified_id  
-            WHERE obj.inference_id = NEW.id and obj.verified_id is not null;
-        END IF;
-        RETURN NEW;
-    END;
-    $$;
-
-    CREATE TRIGGER verified_inference_trigger 
-    AFTER UPDATE ON inference
-    FOR EACH ROW 
-    WHEN (NEW.verified = true)
-    EXECUTE FUNCTION verified_inference();
-
+    EXECUTE FUNCTION "nachet_0.1.1".picture_set_default_name();
 
 END
 $do$
