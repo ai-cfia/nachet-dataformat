@@ -122,9 +122,9 @@ def register_user(cursor : Cursor, email: str) -> UUID:
     try:
         query = """
             INSERT INTO  
-                users (email,default_set_id)
+                users (email)
             VALUES
-                (%s,NULL)
+                (%s)
             RETURNING id
             """
         cursor.execute(
@@ -132,8 +132,8 @@ def register_user(cursor : Cursor, email: str) -> UUID:
             (email,),
         )
         return cursor.fetchone()[0]
-    except Exception:
-        raise UserCreationError(f"Error: user {email} not registered")
+    except Exception as e:
+        raise UserCreationError(f"Error: user {email} not registered" + str(e))
 
 
 def link_container(cursor : Cursor, user_id: str, container_url: str):

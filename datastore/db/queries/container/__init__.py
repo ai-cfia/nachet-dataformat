@@ -31,14 +31,14 @@ def create_container(cursor : Cursor, name : str, user_id : UUID, is_public: boo
     try:
         query = """
             INSERT INTO
-                containers (name,created_by_id,is_public,storage_prefix)
+                container (name,created_by_id,is_public,storage_prefix,last_updated_by_id)
             VALUES
-                (%s,%s,%s,%s)
+                (%s,%s,%s,%s,%s)
             RETURNING id;
             """
         cursor.execute(
             query,
-            (name,user_id,is_public,storage_prefix),
+            (name,user_id,is_public,storage_prefix,user_id),
         )
         return cursor.fetchone()[0]
     except Exception as e:
@@ -67,12 +67,12 @@ def has_user_access_to_container(cursor : Cursor, user_id : UUID, container_id :
                         container_user
                     WHERE
                         user_id = %s AND container_id = %s);
-            """
+            """        
         cursor.execute(
             query,
             (user_id,container_id),
         )
-        return cursor.fetchone() is not None
+        return cursor.fetchone()[0]
     except Exception as e:
         raise ContainerUserNotFoundError(f"Error: user {user_id} not found in container {container_id}\n" + str(e))  
 
@@ -110,7 +110,7 @@ def has_user_group_access_to_container(cursor : Cursor, user_id : UUID, containe
             query,
             (user_id,container_id),
         )
-        return cursor.fetchone() is not None
+        return cursor.fetchone()[0]
     except Exception as e:
         raise ContainerUserNotFoundError(f"Error: user {user_id} not found in container {container_id}\n" + str(e))
 
@@ -129,7 +129,7 @@ def add_user_to_container(cursor : Cursor, user_id : UUID, container_id : UUID, 
             assigned_by_id = user_id
         query = """
             INSERT INTO  
-                container_user (container_id,user_id created_by_id,last_updated_by_id)
+                container_user (container_id,user_id, created_by_id,last_updated_by_id)
             VALUES
                 (%s,%s,%s,%s);
             """
@@ -168,7 +168,7 @@ def add_group_to_container(cursor : Cursor, group_id : UUID, container_id : UUID
     
 def get_container(cursor : Cursor,  container_id : UUID):
     """
-    This function gets the UUID of a container.
+    This function gets the information of a container.
 
     Parameters:
     - cursor (cursor): The cursor of the database.
@@ -179,10 +179,11 @@ def get_container(cursor : Cursor,  container_id : UUID):
     """
     try:
         query = """
-                SELECT
+            SELECT
                 c.name,
                 c.is_public,
-                c.storage_prefix || '-' || c.id as storage_name,
+                c.storage_prefix,
+                c.storage_prefix || '-' || c.id as path,
                 c.created_by_id,
                 array_agg(cu.user_id),
                 array_agg(cg.group_id)
@@ -201,20 +202,21 @@ def get_container(cursor : Cursor,  container_id : UUID):
             GROUP BY
                 c.name,
                 c.is_public, 
-                storage_name, 
+                c.storage_prefix,
+                path,
                 c.created_by_id
-            );
+            ;
             """
         cursor.execute(
             query,
             (container_id,),
         )
-        container_id = cursor.fetchone()
+        container_id = cursor.fetchall()
         if container_id is None:
-            raise ContainerNotFoundError(f"Error: container {container_name} not found")
+            raise ContainerNotFoundError(f"Error: container {container_id} not found")
         return container_id[0]
     except Exception as e:
-        raise ContainerNotFoundError(f"Error: container {container_name} not found\n" + str(e))
+        raise ContainerNotFoundError(f"Error: container {container_id} not found\n" + str(e))
     
 def delete_container(cursor : Cursor, container_id : UUID) -> None:
     """
@@ -227,7 +229,7 @@ def delete_container(cursor : Cursor, container_id : UUID) -> None:
     try:
         query = """
             DELETE FROM
-                containers
+                container
             WHERE
                 id = %s;
             """
@@ -305,7 +307,7 @@ def get_user_containers(cursor:Cursor, user_id:UUID):
                 c.storage_prefix,
                 c.created_by_id
             FROM
-                containers as c
+                container as c
             LEFT JOIN
                 container_user as cu
             ON
@@ -331,3 +333,32 @@ def get_user_containers(cursor:Cursor, user_id:UUID):
     except Exception as e:
         raise ContainerNotFoundError(f"Error: containers for user {user_id} not found\n" + str(e))
 
+def is_a_container(cursor:Cursor, container_id:UUID):
+    """
+    This function checks if a container exists.
+
+    Parameters:
+    - cursor (cursor): The cursor of the database.
+    - container_id (str): The UUID of the container.
+
+    Returns:
+    - True if the container exists, False otherwise.
+    """
+    try:
+        query = """
+            SELECT
+                EXISTS(
+                    SELECT
+                        1
+                    FROM
+                        container
+                    WHERE
+                        id = %s);
+            """
+        cursor.execute(
+            query,
+            (container_id,),
+        )
+        return cursor.fetchone()[0]
+    except Exception as e:
+        raise ContainerNotFoundError(f"Error: container {container_id} not found\n" + str(e))

@@ -5,7 +5,7 @@ from datetime import date
 from datastore.db.metadata import validator
 from pydantic import BaseModel
 from uuid import UUID
-from typing import Optional
+from typing import Optional, List
 
 class PictureSetCreationError(Exception):
     pass
@@ -14,7 +14,8 @@ class PictureSet(BaseModel):
     picture_set_id: UUID
     name : Optional[str]=None
     link : str
-    pictures = Optional[list[UUID]]=[]
+    pictures: Optional[List[UUID]]=[]
+    children: Optional[List['PictureSet']]=[]
 
 class PictureMetadata(BaseModel):
     picture_id: Optional[UUID]=None
@@ -43,6 +44,8 @@ def build_picture_set_metadata(user_id: str, nb_picture: int):
         edited_by=str(user_id),
         edit_date=date.today(),
         privacy_flag=False,
+        change_log="Picture set created",
+        access_log="Picture set created",
     )
 
     picture_set_data = validator.ProcessedPictureSet(

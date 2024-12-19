@@ -40,7 +40,7 @@ This module contains all the queries related to the Picture and PictureSet table
 """
 
 
-def new_picture_set(cursor: Cursor, picture_set_metadata, user_id: UUID, folder_name: str = None,container_id: UUID = None)->UUID:
+def new_picture_set(cursor: Cursor, picture_set_metadata, user_id: UUID, folder_name: str = None,container_id: UUID = None,parent_id:UUID=None)->UUID:
     """
     This function uploads a new PictureSet to the database.
 
@@ -60,10 +60,11 @@ def new_picture_set(cursor: Cursor, picture_set_metadata, user_id: UUID, folder_
                     picture_set,
                     owner_id,
                     name,
-                    container_id
+                    container_id,
+                    parent_id
                     )
             VALUES
-                (%s, %s, %s, %s)
+                (%s, %s, %s, %s, %s)
             RETURNING id
             """
         cursor.execute(
@@ -73,6 +74,7 @@ def new_picture_set(cursor: Cursor, picture_set_metadata, user_id: UUID, folder_
                 user_id,
                 folder_name,
                 container_id,
+                parent_id,
             ),
         )
         return cursor.fetchone()[0]
@@ -170,8 +172,8 @@ def new_picture_unknown(cursor : Cursor, picture, picture_set_id: UUID, nb_objec
             ),
         )
         return cursor.fetchone()[0]
-    except Exception:
-        raise PictureUploadError("Error: Picture not uploaded")
+    except Exception as e:
+        raise PictureUploadError("Error: Picture not uploaded \n" + str(e))
 
 
 def get_picture_set(cursor : Cursor, picture_set_id: UUID):
@@ -271,7 +273,8 @@ def get_picture_sets_by_container(cursor: Cursor, container_id: UUID):
                 ps.id,
                 ps.name,
                 COALESCE(ps.name, ps.id::text) as folder_path,
-                ARRAY_AGG(p.id)
+                COALESCE(Array_Agg(p.id) FILTER (WHERE p.id IS NOT NULL), '{}') as picture_ids,
+                ps.parent_id
             FROM
                 picture_set as ps
             LEFT JOIN 
@@ -281,8 +284,12 @@ def get_picture_sets_by_container(cursor: Cursor, container_id: UUID):
             WHERE
                 container_id = %s
             GROUP BY 
-                ps.id;
+                ps.id, ps.name, folder_path
+            ORDER BY
+                ps.parent_id DESC; 
             """
+        # The order by parent_id is to have the root folder first
+        # In PostgreSQL, the ORDER BY clause treats the null entries as the largest values. 
         cursor.execute(query, (container_id,))
         if cursor.rowcount == 0:
             return []
@@ -426,6 +433,47 @@ def is_picture_validated(cursor : Cursor, picture_id: UUID) -> bool:
         raise GetPictureError(
             f"Error: could not check if the picture {picture_id} is validated"
         )
+
+def already_contain_folder(cursor:Cursor,container_id: UUID, parent_id:UUID=None, folder_name:str=None)->bool:
+    """
+    This ufnciton checks if a container already contains a folder at the same level.
+    """
+    try:
+        if folder_name is None or folder_name.strip() == "":
+            raise Exception("folder name cannot be empty or Null")
+        if parent_id is not None:
+            query = """
+                SELECT 
+                    EXISTS(
+                        SELECT
+                            1
+                        FROM
+                            picture_set
+                        WHERE
+                            parent_id = %s AND container_id = %s AND name ILIKE %s);
+                """
+            cursor.execute(
+                query,
+                (parent_id,container_id,folder_name),
+            )
+        else:
+            query = """
+                SELECT 
+                    EXISTS(
+                        SELECT
+                            1
+                        FROM
+                            picture_set
+                        WHERE
+                            parent_id is NULL AND container_id = %s AND name ILIKE %s);
+                """
+            cursor.execute(
+                query,
+                (container_id,folder_name),
+            )
+        return cursor.fetchone()[0]
+    except Exception as e:
+        raise Exception("unhandled error" + str(e))
 
 
 def check_picture_inference_exist(cursor : Cursor, picture_id: UUID):
