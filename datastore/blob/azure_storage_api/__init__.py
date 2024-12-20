@@ -83,14 +83,14 @@ def build_container_name(name: str, tier: str = "user") -> str:
 
     Parameters:
     - name (str): the name of the container. Usually the container uuid
-    - tier (str): the tier of the container; Default is 'user'. 
+    - tier (str): the tier of the container; Default is 'user'.
     """
     if not name or name.strip() == "":
         raise ValueError("Name is required")
     return "{}-{}".format(tier, name)
 
 
-def build_blob_name(folder_path: str, blob_name: str, file_type: str = None)-> str:
+def build_blob_name(folder_path: str, blob_name: str, file_type: str = None) -> str:
     """
     This function builds the blob name based on the folder name and the image uuid
 
@@ -115,7 +115,7 @@ async def mount_container(
     create_container=True,
     storage_prefix="user",
     credentials="",
-)->ContainerClient:
+) -> ContainerClient:
     """
     Creates a container_client as an object that can be used in other functions.
 
@@ -186,10 +186,10 @@ async def upload_image(
     - image:
     """
     try:
-        if not await is_a_folder(container_client,folder_uuid):
+        if not await is_a_folder(container_client, folder_uuid):
             raise CreateDirectoryError(f"Folder:{folder_uuid} does not exist")
         else:
-            blob_name = build_blob_name(str(folder_path), str(image_uuid),None)
+            blob_name = build_blob_name(str(folder_path), str(image_uuid), None)
             metadata = {
                 "picture_uuid": f"{str(image_uuid)}",
                 "picture_set_uuid": f"{str(folder_uuid)}",
@@ -204,7 +204,9 @@ async def upload_image(
         raise Exception("Datastore.blob.azure_storage unHandled Error")
 
 
-async def is_a_folder(container_client : ContainerClient, folder_uuid:str):
+async def is_a_folder(
+    container_client: ContainerClient, folder_uuid: str, folder_path: str = None
+) -> bool:
     """
     This function checks if a folder exists in the container
 
@@ -219,17 +221,23 @@ async def is_a_folder(container_client : ContainerClient, folder_uuid:str):
         if str(folder_uuid) in directories:
             return True
         else:
+            if folder_path in directories.values():
+                return True
             return False
-    except FolderListError as e:
-        print(e)
-        raise FolderListError(
-            "Error getting folder list, could not check if its a folder"
+    except FolderListError as error:
+        raise error
+    except Exception as e:
+        raise Exception(
+            "Datastore.blob.azure_storage, Unhandled Error: \n" + e.__str__()
         )
-    except Exception:
-        raise Exception("Datastore.blob.azure_storage : Unhandled Error")
 
 
-async def create_folder(container_client : ContainerClient, folder_uuid:str=None, path_to_folder:str=None, folder_name:str=None)->str:
+async def create_folder(
+    container_client: ContainerClient,
+    folder_uuid: str = None,
+    path_to_folder: str = None,
+    folder_name: str = None,
+) -> str:
     """
     creates a folder in the user's container
 
@@ -244,13 +252,14 @@ async def create_folder(container_client : ContainerClient, folder_uuid:str=None
             raise CreateDirectoryError("uuid not provided")
         if folder_name is None:
             folder_name = str(folder_uuid)
+        if path_to_folder is None:
+            # This mean this folder is at the root of the container
+            folder_path = str(folder_name)
+        else:
+            folder_path = path_to_folder + "/" + folder_name
         # Until we allow user to manually create folder and name them
-        if not await is_a_folder(container_client, folder_uuid):
-            if path_to_folder is None:
-                # This mean this folder is at the root of the container
-                folder_path = str(folder_name)
-            else:
-                folder_path = path_to_folder + "/" + folder_name
+        if not await is_a_folder(container_client, folder_uuid, folder_path):
+
             folder_data = {
                 "folder_path": folder_path,
                 "date_created": str(
@@ -273,8 +282,7 @@ async def create_folder(container_client : ContainerClient, folder_uuid:str=None
     except CreateDirectoryError as error:
         raise error
     except FolderListError as error:
-        print(error)
-        raise CreateDirectoryError("Error getting folder list, could not create folder")
+        raise CreateDirectoryError("could not create folder")
     except Exception as error:
         print(error)
         raise Exception("Datastore unHandled Error")
@@ -354,8 +362,9 @@ async def upload_inference_result(container_client, folder_name, result, hash_va
         print(error)
         return False
 
-# This seems useless if the path are uuids 
-async def get_folder_uuid(container_client, folder_path)-> List[UUID]:
+
+# This seems useless if the path are uuids
+async def get_folder_uuid(container_client:ContainerClient, folder_path) -> List[UUID]:
     """
     gets the uuid of a folder in the user's container given the folder name by
     iterating through the folder json files and extracting the name
@@ -363,25 +372,23 @@ async def get_folder_uuid(container_client, folder_path)-> List[UUID]:
     """
     try:
         raise Exception("This function is not used")
-        blob_list = container_client.list_blobs()
+        blob_list = container_client.list_blobs(name_starts_with=folder_path)
         for blob in blob_list:
-            # if a folder exist a ...<uuid>/<uuid>.json exists
+            # if a folder exist a ...<folder_name>/<folder_uuid>.json exists
             if (
                 blob.name.split(".")[-1] == "json"
                 and is_valid_uuid((blob.name.split("/")[-1]).split(".")[0])
-                and (blob.name.split("/")[-1]).split(".")[0] == (blob.name.split("/")[-2])
             ):
                 folder_json = await get_blob(container_client, blob.name)
 
                 if folder_json:
                     folder_json = json.loads(folder_json)
 
-                    if folder_json["folder_name"] == folder_path:
-                        if "folder_uuid" not in folder_json:
-                            raise GetFolderUUIDError(
-                                "Folder UUID not found in folder metadata"
-                            )
-                        return folder_json["folder_uuid"]
+                    if "folder_uuid" not in folder_json:
+                        raise GetFolderUUIDError(
+                            "Folder UUID not found in folder metadata"
+                        )
+                    return folder_json["folder_uuid"]
         raise GetFolderUUIDError(f"Folder '{folder_path}' not found")
     except GetFolderUUIDError as error:
         raise error
@@ -390,14 +397,13 @@ async def get_folder_uuid(container_client, folder_path)-> List[UUID]:
         raise Exception("Datastore.blob.azure_storage unHandled Error")
 
 
-async def get_image_count(container_client, folder_path):
+async def get_image_count(container_client: ContainerClient, folder_path):
     """
     gets the number of images in a folder in the user's container
     """
     try:
-        folder_uuid = await get_folder_uuid(container_client, folder_path)
-        if folder_uuid:
-            blob_list = container_client.list_blobs()
+        if container_client.exists():
+            blob_list = container_client.list_blobs(name_starts_with=folder_path)
             count = 0
             for blob in blob_list:
 
@@ -407,7 +413,7 @@ async def get_image_count(container_client, folder_path):
                     count += 1
             return count
         else:
-            return False
+            raise GetFolderUUIDError("Container does not exist")
     except GetFolderUUIDError as error:
         print(error)
         return False
@@ -422,19 +428,19 @@ async def get_directories(container_client):
         blob_list = container_client.list_blobs()
         for blob in blob_list:
             # if .../<uuid>.json exists
-            if (
-                blob.name.split(".")[-1] == "json"
-                and is_valid_uuid(blob.name.split("/")[-1].split(".")[0])
+            if blob.name.split(".")[-1] == "json" and is_valid_uuid(
+                blob.name.split("/")[-1].split(".")[0]
             ):
                 json_blob = await get_blob(container_client, blob.name)
                 if json_blob:
                     folder_json = json.loads(json_blob)
-                    directories[str(folder_json["folder_uuid"])] = folder_json["folder_path"]
+                    directories[str(folder_json["folder_uuid"])] = folder_json[
+                        "folder_path"
+                    ]
         return directories
     except FolderListError as error:
         raise error
     except Exception as error:
-        print(error)
         raise FolderListError(f"Error getting directories: {str(error)}")
 
 
@@ -472,7 +478,9 @@ async def download_container(container_client, container_name, local_dir):
         raise Exception("Error downloading container")
 
 
-async def get_blobs_from_tag(container_client: ContainerClient, tag: str):
+async def get_blobs_from_tag(
+    container_client: ContainerClient, tag: str, tag_value: str
+):
     """
     This function gets the names of blobs in a picture set folder
 
@@ -490,20 +498,16 @@ async def get_blobs_from_tag(container_client: ContainerClient, tag: str):
         blob_list = list(container_client.list_blobs(include=["tags"]))
         result: list[BlobProperties] = []
         for blob in blob_list:
-            if (
-                blob.get("tags")
-                and "picture_set_uuid" in blob.get("tags")
-                and blob.get("tags").get("picture_set_uuid") == tag
-            ):
+            if tag in blob.get("tags") and blob.get("tags")[tag] == tag_value:
                 result.append(blob)
-
         if len(result) > 0:
             return result
         else:
-            raise GetBlobError("No blobs found with the given tag")
+            return []
     except Exception as e:
         print(f"Exception during find_blobs_by_tags: {e}")
-        
+
+
 async def delete_folder_path(container_client: ContainerClient, folder_path):
     """
     This function deletes a folder in the user's container
@@ -527,6 +531,7 @@ async def delete_folder_path(container_client: ContainerClient, folder_path):
     except Exception:
         return False
 
+
 async def delete_folder(container_client: ContainerClient, picture_set_id):
     """
     This function deletes a folder in the user's container
@@ -538,6 +543,7 @@ async def delete_folder(container_client: ContainerClient, picture_set_id):
     Returns: True if the folder is deleted, False otherwise
     """
     try:
+        raise Exception("This function is not used")
         blobs = await get_blobs_from_tag(container_client, picture_set_id)
         for blob in blobs:
             container_client.delete_blob(blob.name)
