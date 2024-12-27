@@ -19,14 +19,14 @@ Storage account:
 │  Container:
 └───user-8367cc4e-1b61-42c2-a061-ca8662aeac37
 |   | Folder:
-│   └───fb20146f-df2f-403f-a56f-f02a48092167/
+│   └───folder-name/
 |   |  |   fb20146f-df2f-403f-a56f-f02a48092167.json
 │   |  │   f9b0ef75-6276-4ffc-a71c-975bc842063c.tiff
 │   |  │   68e16a78-24bd-4b8c-91b6-75e6b84c40d8.tiff
 │   |  |   ...
 │   |  └─────────────
 |   | Folder:
-│   └───a6bc9da0-b1d0-42e5-8c41-696b86271d55/
+│   └───other-folder-name/
 │      |   ...
 │      └─────────────
 |   Container:

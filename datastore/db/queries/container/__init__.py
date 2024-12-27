@@ -332,6 +332,42 @@ def get_user_containers(cursor:Cursor, user_id:UUID):
             return result
     except Exception as e:
         raise ContainerNotFoundError(f"Error: containers for user {user_id} not found\n" + str(e))
+    
+def get_user_group_containers(cursor:Cursor, user_id:UUID):
+    """
+    This function gets all the containers of a group.
+
+    Parameters:
+    - cursor (cursor): The cursor of the database.
+    - group_id (str): The UUID of the group.
+
+    Returns:
+    - The containers of the group.
+    """
+    try:
+        query = """
+            SELECT
+                cg.container_id
+            FROM
+                container_group as cg
+            LEFT JOIN
+                user_group as ug
+            ON
+                cg.group_id = ug.group_id
+            WHERE
+                ug.user_id = %s;
+            """
+        cursor.execute(
+            query,
+            (user_id,),
+        )
+        result = cursor.fetchall()
+        if result is None:
+            return []
+        else :
+            return result
+    except Exception as e:
+        raise ContainerNotFoundError(f"Error: group containers for {user_id} not found\n" + str(e))
 
 def is_a_container(cursor:Cursor, container_id:UUID):
     """

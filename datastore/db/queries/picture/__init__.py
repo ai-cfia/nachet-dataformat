@@ -229,6 +229,34 @@ def get_picture_set_name(cursor : Cursor, picture_set_id: UUID):
     except Exception:
         raise PictureSetNotFoundError(f"Error: PictureSet not found:{picture_set_id}")
 
+def get_picture_set_id(cursor: Cursor, container_id:UUID, name:str)->UUID:
+    """
+    This function retrieves the picture_set_id of a picture_set from the database
+    based on the container_id and the name of the picture_set.
+
+    Parameters:
+    - cursor (cursor): The cursor of the database.
+    - container_id (str): The UUID of the container.
+    - name (str): The name of the picture_set.
+    """
+    try:
+        query = """
+            SELECT
+                id
+            FROM
+                picture_set
+            WHERE
+                container_id = %s AND name ILIKE %s
+            """
+        cursor.execute(query, (container_id,str(name)))
+        res = cursor.fetchone()
+        # res = (id,) or None
+        if res is None:
+            return None
+        else:
+            return res[0]
+    except Exception:
+        raise PictureSetNotFoundError(f"Error: PictureSet not found for container:{container_id} and name:{name}")
 
 def get_user_picture_sets(cursor: Cursor, user_id: UUID):
     """
@@ -272,7 +300,7 @@ def get_picture_sets_by_container(cursor: Cursor, container_id: UUID):
             SELECT
                 ps.id,
                 ps.name,
-                COALESCE(ps.name, ps.id::text) as folder_path,
+                COALESCE(ps.name, ps.id::text) as last_folder_path,
                 COALESCE(Array_Agg(p.id) FILTER (WHERE p.id IS NOT NULL), '{}') as picture_ids,
                 ps.parent_id
             FROM
@@ -284,7 +312,7 @@ def get_picture_sets_by_container(cursor: Cursor, container_id: UUID):
             WHERE
                 container_id = %s
             GROUP BY 
-                ps.id, ps.name, folder_path
+                ps.id, ps.name, last_folder_path
             ORDER BY
                 ps.parent_id DESC; 
             """
@@ -405,6 +433,28 @@ def get_validated_pictures(cursor : Cursor, picture_set_id: UUID):
         raise GetPictureError(
             f"Error: Error while getting validated pictures for picture_set:{picture_set_id}"
         )
+
+def get_picture_set_container_id(cursor : Cursor, picture_set_id: UUID)->UUID:
+    """
+    This function retrieves the container_id of a picture_set from the database.
+
+    Parameters:
+    - cursor (cursor): The cursor of the database.
+    - picture_set_id (str): The UUID of the PictureSet to retrieve the container_id from.
+    """
+    try:
+        query = """
+            SELECT
+                container_id
+            FROM
+                picture_set
+            WHERE
+                id = %s
+            """
+        cursor.execute(query, (picture_set_id,))
+        return cursor.fetchone()[0]
+    except Exception:
+        raise PictureSetNotFoundError(f"Error: PictureSet not found:{picture_set_id}")
 
 
 def is_picture_validated(cursor : Cursor, picture_id: UUID) -> bool:

@@ -301,6 +301,7 @@ async def create_dev_container_folder(
     - user_id : the user id of the user archiving a folder
     """
     try:
+        raise Exception("This function is not used")
         # We want to enable 2 types of folder creation
         if folder_uuid is None and folder_name is None:
             raise CreateDirectoryError("Folder name and uuid not provided")

@@ -69,8 +69,9 @@ create schema "nachet_0.1.1";
         "picture_set" json NOT NULL,
         "owner_id" uuid NOT NULL REFERENCES "nachet_0.1.1".users(id),
         "upload_date" date NOT NULL DEFAULT current_timestamp,
-        "name" text,
-        "container_id" uuid NOT NULL REFERENCES "nachet_0.1.1".container(id) ON DELETE CASCADE
+        "name" text NOT NULL,
+        "container_id" uuid NOT NULL REFERENCES "nachet_0.1.1".container(id) ON DELETE CASCADE,
+        "parent_id" uuid REFERENCES "nachet_0.1.1".picture_set(id) ON DELETE CASCADE
     );
     
     CREATE TABLE "nachet_0.1.1"."picture" (

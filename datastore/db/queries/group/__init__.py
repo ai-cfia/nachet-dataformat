@@ -170,13 +170,11 @@ def get_group_users(cursor : Cursor, group_id : UUID) -> dict:
     try:
         query = """
             SELECT 
-                id,
-                name,
-                created_by_id
+                user_id,
             FROM 
-                groups
+                user_group
             WHERE 
-                id = %s
+                group_id = %s
             """
         cursor.execute(
             query,

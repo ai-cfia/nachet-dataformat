@@ -79,7 +79,7 @@ def is_a_user_id(cursor : Cursor, user_id: str) -> bool:
         raise Exception(f"Error: could not check if {user_id} given is a user id")
 
 
-def get_user_id(cursor : Cursor, email: str) -> str:
+def get_user_id(cursor : Cursor, email: str) -> UUID:
     """
     This function retrieves the UUID of a user.
 
