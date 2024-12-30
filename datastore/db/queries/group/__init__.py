@@ -184,6 +184,34 @@ def get_group_users(cursor : Cursor, group_id : UUID) -> dict:
     except Exception:
         raise GroupNotFoundError(f"Error: group {group_id} not found")
     
+def get_group_name(cursor : Cursor, group_id : UUID) -> str:
+    """
+    This function retrieves a group name from the database.
+    
+    Parameters:
+    - cursor (cursor): The cursor of the database.
+    - group_id (str): The UUID of the group.
+
+    Returns:
+    - str: The group name.
+    """
+    try:
+        query = """
+            SELECT 
+                name
+            FROM 
+                groups
+            WHERE 
+                id = %s
+            """
+        cursor.execute(
+            query,
+            (group_id,),
+        )
+        return cursor.fetchone()[0]
+    except Exception:
+        raise GroupNotFoundError(f"Error: group {group_id} not found")
+    
 def get_group_by_name(cursor : Cursor, group_name : str) -> dict:
     """
     This function retrieves a group from the database.

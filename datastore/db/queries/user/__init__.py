@@ -275,3 +275,27 @@ def get_default_picture_set(cursor : Cursor, user_id: str):
         raise e
     except Exception:
         raise Exception("Error: could not retrieve default picture set")
+    
+def delete_user(cursor : Cursor, user_id: UUID):
+    """
+    This function deletes a user from the database.
+
+    Parameters:
+    - cursor (cursor): The cursor of the database.
+    - user_id (str): The UUID of the user.
+
+    Returns:
+    - None
+    """
+    if not is_a_user_id(cursor=cursor, user_id=user_id):
+        raise UserNotFoundError(f"User not found for the given id: {user_id}")
+    try:
+        query = """
+            DELETE FROM 
+                users
+            WHERE 
+                id = %s
+            """
+        cursor.execute(query, (user_id,))
+    except Exception:
+        raise Exception("Error: could not delete user")

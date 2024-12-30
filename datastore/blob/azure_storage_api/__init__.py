@@ -531,6 +531,47 @@ async def delete_folder_path(container_client: ContainerClient, folder_path):
         return False
     except Exception:
         return False
+    
+async def delete_blob(container_client: ContainerClient, blob_name):
+    """
+    This function deletes a blob in the user's container
+
+    Parameters:
+    - container_client: the Azure container client
+    - blob_name: name of the blob to delete
+
+    Returns: True if the blob is deleted, False otherwise
+    """
+    try:
+        if not container_client.exists():
+            raise GetFolderUUIDError("Container does not exist")
+        await container_client.delete_blob(blob_name)
+        return True
+
+    except GetFolderUUIDError:
+        return False
+    except Exception:
+        return False
+
+async def delete_container(container_client: ContainerClient):
+    """
+    This function deletes a container in the user's container
+
+    Parameters:
+    - container_client: the Azure container client
+
+    Returns: True if the container is deleted, False otherwise
+    """
+    try:
+        if not container_client.exists():
+            raise GetFolderUUIDError("Container does not exist")
+        await container_client.delete_container()
+        return True
+
+    except GetFolderUUIDError:
+        return False
+    except Exception:
+        return False
 
 
 async def delete_folder(container_client: ContainerClient, picture_set_id):

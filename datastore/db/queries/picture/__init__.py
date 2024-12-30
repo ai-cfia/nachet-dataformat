@@ -793,6 +793,25 @@ def delete_picture_set(cursor: Cursor, picture_set_id:UUID):
         cursor.execute(query, (picture_set_id,))
     except Exception:
         raise PictureSetDeleteError(f"Error: PictureSet not deleted:{picture_set_id}")
+    
+def delete_picture(cursor: Cursor, picture_id:UUID):
+    """
+    This function deletes a picture from the database.
+
+    parameters:
+    - cursor (cursor) : The cursor of the database.
+    - picture_id (str) : The UUID of the picture to delete.
+    """
+    try:
+        query = """
+            DELETE FROM
+                picture
+            WHERE
+                id = %s
+            """
+        cursor.execute(query, (picture_id,))
+    except Exception:
+        raise PictureUpdateError(f"Error: Picture not deleted:{picture_id}")
 
 
 def get_picture_in_picture_set(cursor: Cursor, picture_set_id:UUID):

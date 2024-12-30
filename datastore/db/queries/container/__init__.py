@@ -44,6 +44,61 @@ def create_container(cursor : Cursor, name : str, user_id : UUID, is_public: boo
     except Exception as e:
         raise ContainerCreationError(f"Error: container {name} not created\n" + str(e))
 
+def has_user_sole_access_to_container(cursor : Cursor, user_id : UUID, container_id : UUID) -> bool:
+    """
+    This function checks if a user has sole ownership of a container.
+
+    Parameters:
+    - cursor (cursor): The cursor of the database.
+    - user_id (str): The UUID of the user.
+    - container_id (str): The UUID of the container.
+
+    Returns:
+    - True if the user has sole ownership of the container, False otherwise.
+    """
+    try:
+        # Check if other user have user_container entries
+        query = """
+            SELECT 
+                COUNT(id)
+            FROM
+                user_container
+            WHERE
+                container_id = %s AND user_id != %s;
+            """
+        cursor.execute(
+            query,
+            (container_id,user_id),
+        )
+        result = cursor.fetchone()[0]
+        if result > 0:
+            return False
+        # Check if other user have group_container entries
+        query = """
+            SELECT
+                COUNT(id)
+            FROM
+                user_group
+            WHERE
+                group_id IN (
+                    SELECT
+                        group_id
+                    FROM
+                        container_group
+                    WHERE
+                        container_id = %s
+                ) 
+            AND 
+                user_id != %s;
+            """
+        cursor.execute(
+            query,
+            (container_id,user_id),
+        )
+        result = cursor.fetchone()[0]
+        return result == 0
+    except Exception as e:
+        raise ContainerNotFoundError(f"Error: container {container_id} not found\n" + str(e))
 
 def has_user_access_to_container(cursor : Cursor, user_id : UUID, container_id : UUID) -> bool:
     """
@@ -332,6 +387,53 @@ def get_user_containers(cursor:Cursor, user_id:UUID):
             return result
     except Exception as e:
         raise ContainerNotFoundError(f"Error: containers for user {user_id} not found\n" + str(e))
+    
+def get_group_containers(cursor:Cursor, group_id:UUID):
+    """
+    This function gets all the containers of a group.
+
+    Parameters:
+    - cursor (cursor): The cursor of the database.
+    - group_id (str): The UUID of the group.
+
+    Returns:
+    - The containers of the group.
+    """
+    try:
+        query = """
+            SELECT
+                c.id,
+                c.name,
+                c.is_public,
+                c.storage_prefix || '-' || c.id as storage_name,
+                c.storage_prefix,
+                c.created_by_id
+            FROM
+                container as c
+            LEFT JOIN
+                container_group as cg
+            ON
+                c.id = cg.container_id
+            WHERE
+                cg.group_id = %s
+            GROUP BY
+                c.id,
+                c.name,
+                c.is_public,
+                storage_name,
+                c.created_by_id;
+            """
+        cursor.execute(
+            query,
+            (group_id,),
+        )
+        result = cursor.fetchall()
+        if result is None:
+            return []
+        else :
+            return result
+    except Exception as e:
+        raise ContainerNotFoundError(f"Error: containers for group {group_id} not found\n" + str(e))
     
 def get_user_group_containers(cursor:Cursor, user_id:UUID):
     """
