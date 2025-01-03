@@ -3,6 +3,8 @@
 ## Module classes
 ```mermaid
 classDiagram
+
+
     class Folder {
         UUID id
         str name
@@ -11,58 +13,79 @@ classDiagram
         List~UUID~ pictures
         Optional~UUID~ parent_id
     }
+
     class Container {
         UUID id
-        str storage_prefix
-        Optional~ContainerClient~ container_client
         str name
+        bool is_public
+        str storage_prefix
         List~UUID~ group_ids
         List~UUID~ user_ids
         Dict~UUID, Folder~ folders
-        bool is_public
         str path
-        +__init__(id: UUID, tier: str, name: str, public: bool)
-        +fetch_all_folders_metadata(cursor: Cursor)
-        +fetch_all_data(cursor: Cursor)
-        +__build_children_path(folder_id: UUID)
-        +__remove_folder_and_children(folder_id: UUID)
-        +get_container_client(connection_str: str, credentials: str)
-        +add_user(cursor: Cursor, user_id: UUID, performed_by: UUID)
-        +add_group(cursor: Cursor, group_id: UUID, performed_by: UUID)
-        +create_storage(connection_str: str, credentials: str)
-        +create_folder(cursor: Cursor, performed_by: UUID, folder_name: str, nb_pictures: int, parent_folder_id: UUID)
-        +upload_pictures(cursor: Cursor, user_id: UUID, hashed_pictures: List~str~, folder_id: UUID, nb_objects: int)
-        +get_folder_pictures(cursor: Cursor, folder_id: UUID, user_id: UUID)
-        +get_picture_blob(cursor: Cursor, picture_id: UUID, user_id: UUID)
-        +delete_folder_permanently(cursor: Cursor, user_id: UUID, folder_id: UUID)
     }
-    class User {
+
+    class ContainerController {
         UUID id
-        str email
-        str tier
-        List~Container~ containers
-        +__init__(email: str, id: UUID, tier: str)
-        +get_email()
-        +get_id()
-        +create_user_container(cursor: Cursor, connection_str: str, name: str, user_id: UUID, is_public: bool, storage_prefix: str)
-        +fetch_all_containers(cursor: Cursor, connection_str: str, credentials: str)
-        +add_container(container: Container)
+        Optional~Container~ model
+        Optional~ azure.storage.blob.ContainerClient~ container_client
+        +__init__(self, id: UUID)
+        -__remove_folder_and_children(self, folder_id: UUID)
+        -__build_children_path(self, folder_id: UUID)
+        +fetch_all_folders_metadata(self, cursor: Cursor)
+        +fetch_all_data(self, cursor: Cursor)
+        +get_container_client(self, connection_str: str, credentials: str)
+        +add_user(self, cursor: Cursor, user_id: UUID, performed_by: UUID)
+        +remove_user(self, cursor: Cursor, user_id: UUID)
+        +add_group(self, cursor: Cursor, group_id: UUID, performed_by: UUID)
+        +remove_group(self, cursor: Cursor, group_id: UUID)
+        +create_storage(self, connection_str: str, credentials: str)
+        +create_folder(self, cursor: Cursor, performed_by: UUID, folder_name: str, nb_pictures: int, parent_folder_id: UUID)
+        +upload_pictures(self, cursor: Cursor, user_id: UUID, hashed_pictures: List~str~, folder_id: UUID, nb_objects: int)
+        +get_folder_pictures(self, cursor: Cursor, folder_id: UUID, user_id: UUID)
+        +get_picture_blob(self, cursor: Cursor, picture_id: UUID, user_id: UUID)
+        +delete_folder_permanently(self, cursor: Cursor, user_id: UUID, folder_id: UUID)
+        +delete_picture_permanently(self, cursor: Cursor, user_id: UUID, picture_id: UUID)
     }
-    class Group {
+
+    class Client {
         UUID id
         str name
-        str tier
-        Container group_container
-        +__init__(name: str, id: UUID)
-        +get_name()
-        +get_id()
-        +create_group_container(cursor: Cursor, connection_str: str, name: str, user_id: UUID, is_public: bool, storage_prefix: str)
+        bool is_public
+        str storage_prefix
+        Dict~UUID, Container~ containers
     }
 
-    Container --> Folder
-    User --> Container
-    Group --> Container
+    class ClientController {
+        UUID id
+        Client model
+        +__init__(self, client_model: Client)
+        +get_name(self)
+        +get_id(self)
+        +get_containers(self)
+        +create_container(self, cursor: Cursor, connection_str: str, name: str, user_id: UUID, is_public: bool) ContainerController
+        +fetch_all_containers(self, cursor: Cursor)
+    }
 
+    class User {
+        +__init__(self, email: str, id: UUID, tier: str)
+        +fetch_all_containers(self, cursor: Cursor, connection_str: str, credentials: str)
+    }
+
+    class Group {
+        +__init__(self, name: str, id: UUID)
+        +create_container(self, cursor: Cursor, connection_str: str, name: str, user_id: UUID, is_public: bool) ContainerController
+        +fetch_all_containers(self, cursor: Cursor)
+        +add_user(self, cursor: Cursor, user_id: UUID, performed_by: UUID)
+        +remove_user(self, cursor: Cursor, user_id: UUID)
+    }
+
+    Folder <-- ContainerController : CRUD
+    Folder *.. Container
+    Container <.. ContainerController: model
+    Client <.. ClientController: model
+    ClientController<|-- User
+    ClientController<|--Group
 ```    
 
 ## Module DB representation

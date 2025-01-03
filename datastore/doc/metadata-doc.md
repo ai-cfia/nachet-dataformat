@@ -65,7 +65,7 @@ flowchart LR;
     DB[(Database)]
     blob[(Blob)]
     end
-    BE -- TODO --- MD
+    BE --> MD
     MD --> DB
     MD --> blob
 
