@@ -12,7 +12,7 @@ from fertiscan.db.metadata import inspection as metadata
 from fertiscan.db.queries import errors as e
 from fertiscan.db.queries import label, nutrients
 
-DB_CONNECTION_STRING = os.environ.get("FERTISCAN_DB_URL_TESTING")
+DB_CONNECTION_STRING = os.environ.get("FERTISCAN_DB_URL")
 if DB_CONNECTION_STRING is None or DB_CONNECTION_STRING == "":
     raise ValueError("FERTISCAN_DB_URL is not set")
 
@@ -147,8 +147,6 @@ class test_guaranteed_analysis(unittest.TestCase):
             self.title_en,
             self.title_fr,
             self.is_minimal,
-            None,
-            None,
             None,
         )
         self.language = "fr"

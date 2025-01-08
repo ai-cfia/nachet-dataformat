@@ -17,13 +17,21 @@ import datastore.db.metadata.validator as validator
 import fertiscan
 import fertiscan.db.metadata.inspection as metadata
 from datastore.db.queries import picture
-from fertiscan.db.queries import inspection, label, metric, nutrients, sub_label,ingredient
+from fertiscan.db.queries import (
+    inspection,
+    label,
+    metric,
+    nutrients,
+    sub_label,
+    ingredient,
+    organization,
+)
 
 BLOB_CONNECTION_STRING = os.environ["FERTISCAN_STORAGE_URL"]
 if BLOB_CONNECTION_STRING is None or BLOB_CONNECTION_STRING == "":
     raise ValueError("FERTISCAN_STORAGE_URL_TESTING is not set")
 
-DB_CONNECTION_STRING = os.environ.get("FERTISCAN_DB_URL_TESTING")
+DB_CONNECTION_STRING = os.environ.get("FERTISCAN_DB_URL")
 if DB_CONNECTION_STRING is None or DB_CONNECTION_STRING == "":
     raise ValueError("FERTISCAN_DB_URL is not set")
 
@@ -134,7 +142,7 @@ class TestDatastore(unittest.IsolatedAsyncioTestCase):
         ) + len(self.analysis_json.get("guaranteed_analysis_fr").get("nutrients"))
 
         self.nb_ingredients = len(self.analysis_json.get("ingredients_en")) + len(
-        self.analysis_json.get("ingredients_fr")
+            self.analysis_json.get("ingredients_fr")
         )
 
         # self.nb_micronutrients = len(self.analysis_json.get("micronutrients_en")) + len(
@@ -152,7 +160,7 @@ class TestDatastore(unittest.IsolatedAsyncioTestCase):
             print(e)
 
     def test_register_analysis(self):
-        print(self.user.id)
+        # print(self.user.id)
         self.assertTrue(self.container_client.exists())
         analysis = asyncio.run(
             fertiscan.register_analysis(
@@ -179,8 +187,11 @@ class TestDatastore(unittest.IsolatedAsyncioTestCase):
             len(metrics), 4
         )  # There are 4 metrics in the analysis_json (1 volume, 1 density, 2 weight )
 
-        ingredients = ingredient.get_ingredient_json(self.cursor, str(analysis["product"]["label_id"]))
-        print(ingredients)
+        ingredients = ingredient.get_ingredient_json(
+            self.cursor, str(analysis["product"]["label_id"])
+        )
+        self.assertIsNotNone(ingredients)
+        # print(ingredients)
 
         # specifications = specification.get_all_specifications(
         # cursor=self.cursor, label_id=str(analysis["product"]["label_id"])
@@ -227,35 +238,29 @@ class TestDatastore(unittest.IsolatedAsyncioTestCase):
 
         label_dimension = label.get_label_dimension(self.cursor, label_id)
 
-        company_info_id = str(label_dimension[1])
-        manufacturer_info_id = str(label_dimension[3])
+        self.assertEqual(
+            str(label_dimension[1][0]), str(analysis["organizations"][0]["id"])
+        )
+        self.assertEqual(
+            str(label_dimension[1][1]), str(analysis["organizations"][1]["id"])
+        )
 
-        self.assertEqual(str(company_info_id), analysis["company"]["id"])
-        self.assertEqual(str(manufacturer_info_id), analysis["manufacturer"]["id"])
+        self.assertEqual(len(label_dimension[2]), self.nb_instructions)
 
-        self.assertEqual(len(label_dimension[5]), self.nb_instructions)
-
-        self.assertEqual(len(label_dimension[6]), self.nb_cautions)
+        self.assertEqual(len(label_dimension[3]), self.nb_cautions)
         # self.assertEqual(len(label_dimension[7]), self.nb_first_aid)
 
-        # self.assertEqual(len(label_dimension[9]), self.nb_specifications)
-        self.assertEqual(len(label_dimension[10]), self.nb_ingredients)
-        # self.assertEqual(len(label_dimension[11]), self.nb_micronutrients)
-        self.assertEqual(len(label_dimension[12]), self.nb_guaranteed)
-        self.assertEqual(len(label_dimension[13]), self.nb_weight)
-        self.assertEqual(len(label_dimension[14]), 1)
-        self.assertEqual(len(label_dimension[15]), 1)
+        # self.assertEqual(len(label_dimension[6]), self.nb_specifications)
+        self.assertEqual(len(label_dimension[7]), self.nb_ingredients)
+        # self.assertEqual(len(label_dimension[8]), self.nb_micronutrients)
+        self.assertEqual(len(label_dimension[9]), self.nb_guaranteed)
+        self.assertEqual(len(label_dimension[10]), self.nb_weight)
+        self.assertEqual(len(label_dimension[11]), 1)
+        self.assertEqual(len(label_dimension[12]), 1)
 
     def test_register_analysis_empty(self):
         empty_analysis = {
-            "company_name": None,
-            "company_address": None,
-            "company_website": None,
-            "company_phone_number": None,
-            "manufacturer_name": None,
-            "manufacturer_address": None,
-            "manufacturer_website": "test-website-to-trigger-adress-not-null-test-case",
-            "manufacturer_phone_number": None,
+            "organizations": [],
             "fertiliser_name": None,
             "registration_number": [],
             "lot_number": None,
@@ -272,7 +277,9 @@ class TestDatastore(unittest.IsolatedAsyncioTestCase):
             "guaranteed_analysis_fr": {"title": None, "nutrients": []},
         }
 
-        formatted_analysis = metadata.build_inspection_import(empty_analysis,self.user.id)
+        formatted_analysis = metadata.build_inspection_import(
+            empty_analysis, self.user.id
+        )
         picture_set_id = picture.new_picture_set(
             self.cursor, json.dumps({}), self.user.id
         )
@@ -284,15 +291,13 @@ class TestDatastore(unittest.IsolatedAsyncioTestCase):
         label_id = inspection_dict["product"]["label_id"]
         self.assertTrue(validator.is_valid_uuid(inspection_id))
 
-        # Make sure the manufacturer is created
+        # Verify the data
         label_data = label.get_label_information(self.cursor, label_id)
         self.assertIsNotNone(label_data)
-        self.assertIsNotNone(label_data[11])
+        self.assertIsNone(label_data[1])
 
         # Verify getters
-        inspection_data = metadata.build_inspection_export(
-            self.cursor, inspection_id
-        )
+        inspection_data = metadata.build_inspection_export(self.cursor, inspection_id)
         inspection_data = json.loads(inspection_data)
         # TODO: investigate if this should pass and why it doesn't
         # Make sure the inspection data is either a empty array or None
@@ -324,7 +329,9 @@ class TestDatastore(unittest.IsolatedAsyncioTestCase):
             )
 
     def test_get_full_inspection_json(self):
-        formatted_analysis = metadata.build_inspection_import(self.analysis_json, self.user.id)
+        formatted_analysis = metadata.build_inspection_import(
+            self.analysis_json, self.user.id
+        )
         picture_set_id = picture.new_picture_set(
             self.cursor, json.dumps({}), self.user.id
         )
@@ -439,7 +446,7 @@ class TestDatastore(unittest.IsolatedAsyncioTestCase):
         old_name = analysis["guaranteed_analysis"]["fr"][0]["name"]
         new_name = "Nouveau nom"
         user_feedback = "This is a feedback"
-        new_record_keeping= True
+        new_record_keeping = True
         # new_specification_en = [
         #     {"humidity": new_value, "ph": 6.5, "solubility": 100, "edited": True}
         # ]
@@ -480,6 +487,17 @@ class TestDatastore(unittest.IsolatedAsyncioTestCase):
         }
 
         new_guaranteed_nb = 2
+
+        old_organizations = analysis["organizations"]
+        new_organizations = [
+            {
+                "name": "New Organization",
+                "address": "New Address",
+                "phone": "New Phone",
+                "email": "New Email",
+                "website": "New Website",
+            }
+        ]
         # update the dataset
         analysis["product"]["name"] = new_product_name
         analysis["product"]["metrics"]["weight"][0]["value"] = new_weight
@@ -494,7 +512,7 @@ class TestDatastore(unittest.IsolatedAsyncioTestCase):
         analysis["cautions"]["en"] = new_cautions_en
         analysis["cautions"]["fr"] = new_cautions_fr
         analysis["guaranteed_analysis"] = new_guaranteed_analysis
-
+        analysis["organizations"] = new_organizations
         analysis["inspection_comment"] = user_feedback
 
         old_label_dimension = label.get_label_dimension(self.cursor, label_id)
@@ -535,7 +553,7 @@ class TestDatastore(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(label_info_data[7], new_title)
         self.assertNotEqual(label_info_data[7], old_title)
         self.assertEqual(label_info_data[8], old_title)
-        self.assertEqual(label_info_data[12], new_record_keeping)
+        self.assertEqual(label_info_data[10], new_record_keeping)
 
         guaranteed_data = nutrients.get_all_guaranteeds(self.cursor, label_id)
         for guaranteed in guaranteed_data:
@@ -548,22 +566,28 @@ class TestDatastore(unittest.IsolatedAsyncioTestCase):
         inspection_data = inspection.get_inspection(self.cursor, inspection_id)
         self.assertEqual(inspection_data[8], user_feedback)
 
+        # Verify organizations are saved
+        orgs = organization.get_organizations_info_label(self.cursor, label_id)
+
+        self.assertEqual(len(orgs), 3)  # 2 default + 1 new
+        self.assertEqual(len(orgs), len(old_organizations) + 1)
+
         # VERIFY OLAP
         new_label_dimension = label.get_label_dimension(self.cursor, label_id)
 
         # Check if sub_label created a new id if there is a field that is not in the old label_dimension
-        self.assertEqual(len(old_label_dimension[6]), self.nb_cautions)
+        self.assertEqual(len(old_label_dimension[3]), self.nb_cautions)
 
-        self.assertEqual(len(new_label_dimension[6]), new_caution_number)
-        self.assertNotEqual(len(new_label_dimension[6]), len(old_label_dimension[6]))
+        self.assertEqual(len(new_label_dimension[3]), new_caution_number)
+        self.assertNotEqual(len(new_label_dimension[3]), len(old_label_dimension[6]))
         # Check if the total of sub_label reduced after a field has been removed
-        self.assertEqual(len(old_label_dimension[5]), self.nb_instructions)
-        self.assertEqual(len(new_label_dimension[5]), new_instruction_nb)
-        self.assertNotEqual(len(new_label_dimension[5]), len(old_label_dimension[5]))
+        self.assertEqual(len(old_label_dimension[2]), self.nb_instructions)
+        self.assertEqual(len(new_label_dimension[2]), new_instruction_nb)
+        self.assertNotEqual(len(new_label_dimension[2]), len(old_label_dimension[5]))
         # Check if the total of guaranteed is reduced after a field has been removed
-        self.assertEqual(len(old_label_dimension[12]), self.nb_guaranteed)
-        self.assertEqual(len(new_label_dimension[12]), new_guaranteed_nb)
-        self.assertNotEqual(len(new_label_dimension[12]), len(old_label_dimension[12]))
+        self.assertEqual(len(old_label_dimension[9]), self.nb_guaranteed)
+        self.assertEqual(len(new_label_dimension[9]), new_guaranteed_nb)
+        self.assertNotEqual(len(new_label_dimension[9]), len(old_label_dimension[12]))
 
         new_guaranteed_analysis = {
             "title": {"en": new_title, "fr": old_title},
@@ -633,6 +657,6 @@ class TestDatastore(unittest.IsolatedAsyncioTestCase):
         new_label_dimension = label.get_label_dimension(self.cursor, label_id)
 
         # Check if the total of guaranteed is increased after a field has been added
-        self.assertEqual(len(new_label_dimension[12]), new_guaranteed_nb)
-        self.assertNotEqual(len(new_label_dimension[12]), len(old_label_dimension[12]))
-        self.assertNotEqual(len(new_label_dimension[12]), old_guaranteed_nb)
+        self.assertEqual(len(new_label_dimension[9]), new_guaranteed_nb)
+        self.assertNotEqual(len(new_label_dimension[9]), len(old_label_dimension[12]))
+        self.assertNotEqual(len(new_label_dimension[9]), old_guaranteed_nb)

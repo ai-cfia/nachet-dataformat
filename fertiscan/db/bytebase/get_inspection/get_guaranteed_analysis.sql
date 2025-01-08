@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION "fertiscan_0.0.17".get_guaranteed_analysis_json(
+CREATE OR REPLACE FUNCTION "fertiscan_0.0.18".get_guaranteed_analysis_json(
     label_info_id uuid
 )
 RETURNS jsonb 
@@ -28,7 +28,7 @@ BEGIN
         ) FILTER (WHERE guaranteed.language = 'fr'), '[]'::jsonb)
     )
     INTO result_json
-    FROM "fertiscan_0.0.17".guaranteed
+    FROM "fertiscan_0.0.18".guaranteed
     WHERE guaranteed.label_id = label_info_id;
 
     -- build Guaranteed_analysis title json
@@ -38,7 +38,7 @@ BEGIN
         'is_minimal', title_is_minimal
     )
     INTO result_json_title
-    FROM "fertiscan_0.0.17".label_information 
+    FROM "fertiscan_0.0.18".label_information 
     WHERE id = label_info_id;
 
     -- merge JSONs

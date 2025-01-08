@@ -225,6 +225,25 @@ def update_sub_label(cursor: Cursor, sub_label_id, text_fr, text_en, edited=True
     """
     cursor.execute(query, (text_fr, text_en, edited, sub_label_id))
 
+def update_sub_label_function(cursor: Cursor, sub_label_id, text_fr, text_en, edited=True):
+    """
+    This function updates the sub label in the database.
+
+    Parameters:
+    - cursor (cursor): The cursor of the database.
+    - sub_label_id (uuid): The UUID of the sub label.
+    - text_fr (str): The text in french.
+    - text_en (str): The text in english.
+    - edited (bool): The edited status of the sub label.
+
+    Returns:
+    - None
+    """
+    query = """
+        SELECT update_sub_label(%s, %s, %s, %s);
+    """
+    cursor.execute(query, (sub_label_id, text_fr, text_en, edited))
+
 
 @handle_query_errors(SubTypeCreationError)
 def new_sub_type(cursor: Cursor, type_fr, type_en):

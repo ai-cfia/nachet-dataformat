@@ -9,26 +9,31 @@ object representing it.
 {
     "inspection_id": "inspection uuid",
     "owner_id": "Organization uuid",
-    "company": {
-        "id": "organization_information uuid",
-        "name": "Company Name",
-        "address": "Company Adress",
-        "website": "www.company.website.com",
-        "phone_number": "# ### ### ####"
-    },
-    "manufacturer": {
-        "id": "organization_inforamtion uuid",
-        "name": "manufacturer name",
-        "address": "manufacturer address",
-        "website": "www.website.com",
-        "phone_number": "1-123-456-7890"
-    },
+    "organizations": [
+      {
+          "name": "Name of company",
+          "address": "address of company",
+          "website": "www.website.com",
+          "phone_number": "+1 800 000 0111",
+          "edited": false,
+          "is_main_contact": true
+      },
+      {
+          "name": "Another company",
+          "address": "Address of second company",
+          "website": "www.website2.com",
+          "phone_number": "+1 444 555 0123",
+          "edited": false,
+          "is_main_contact": false
+      }
+    ],
     "product": {
         "k": 0.0,
         "n": 0.0,
         "p": 0.0,
         "id": "label_information_id",
         "npk": "0-0-0",
+        "record_keeping": null,
         "verified": false,
         "name": "Product/Fertilizer Name",
         "metrics": {
@@ -47,9 +52,12 @@ object representing it.
                 "value": 0.0
             }
         },
-        "warranty": "Warranty text on the label",
         "lot_number": "lot_number on the label",
-        "registration_number": "Registration Number (if there is one)"
+        "registration_numbers": [{
+            "registration_number": "F12345678",
+            "is_an_ingredient": false,
+            "edited": false
+        }],
     },
     "cautions": {
         "en": [
@@ -147,18 +155,25 @@ object representing it.
             }
         ]
     },
-    "guaranteed_analysis": [
+    "guaranteed_analysis":{
+        "title": {
+            "en": "Guaranteed Analysis",
+            "fr": "Analyse Garantie"
+        },
+        "is_minimal" : false,
+        "en":[
         {
             "name": "Name of the element or compound_element",
             "unit": "%",
             "value": 0.0
-        },
+        },],
+        "fr":[
         {
             "name": "Phosphate (P2O5)",
             "unit": "%",
             "value": 20.0
-        },
-    ]
+        },]
+    }
 }
 
 ```

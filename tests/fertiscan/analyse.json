@@ -1,12 +1,18 @@
 {
-  "company_name":"GreenGrow Fertilizers Inc.",
-  "company_address":"123 Greenway Blvd, Springfield IL 62701 USA",
-  "company_website":"www.greengrowfertilizers.com",
-  "company_phone_number":"+1 800 555 0199",
-  "manufacturer_name":"AgroTech Industries Ltd.",
-  "manufacturer_address":"456 Industrial Park Rd, Oakville ON L6H 5V4 Canada",
-  "manufacturer_website":"www.agrotechindustries.com",
-  "manufacturer_phone_number":"+1 416 555 0123",
+  "organizations":[
+    {
+      "name":"GreenGrow Fertilizers Inc.",
+      "address":"123 Greenway Blvd, Springfield IL 62701 USA",
+      "website":"www.greengrowfertilizers.com",
+      "phone_number":"+1 800 555 0199"
+    },
+    {
+      "name":"AgroTech Industries Ltd.",
+      "address":"456 Industrial Park Rd, Oakville ON L6H 5V4 Canada",
+      "website":"www.agrotechindustries.com",
+      "phone_number":"+1 416 555 0123"
+    }
+  ],
   "fertiliser_name":"SuperGrow 20-20-20",
   "registration_number":[
     {

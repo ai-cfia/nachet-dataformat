@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION "fertiscan_0.0.17".get_metrics_json(
+CREATE OR REPLACE FUNCTION "fertiscan_0.0.18".get_metrics_json(
     label_info_id uuid
 )
 RETURNS jsonb 

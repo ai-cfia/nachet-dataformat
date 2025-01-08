@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DB_CONNECTION_STRING = os.environ.get("FERTISCAN_DB_URL_TESTING")
+DB_CONNECTION_STRING = os.environ.get("FERTISCAN_DB_URL")
 if not DB_CONNECTION_STRING:
     raise ValueError("FERTISCAN_DB_URL is not set")
 
@@ -53,8 +53,8 @@ class TestDeleteInspectionFunction(unittest.TestCase):
 
         self.inspection_id = inspection_data["inspection_id"]
         self.label_info_id = inspection_data["product"]["label_id"]
-        self.company_info_id = inspection_data["company"]["id"]
-        self.manufacturer_info_id = inspection_data["manufacturer"]["id"]
+        # self.company_info_id = inspection_data["company"]["id"]
+        # self.manufacturer_info_id = inspection_data["manufacturer"]["id"]
 
         # Update the inspection to verified true
         inspection_data["verified"] = True
@@ -172,52 +172,6 @@ class TestDeleteInspectionFunction(unittest.TestCase):
         )
         ingredient_count = self.cursor.fetchone()[0]
         self.assertEqual(ingredient_count, 0, "Ingredients should be deleted.")
-
-    def test_delete_inspection_with_linked_manufacturer(self):
-        # Attempt to delete the inspection, which should raise a notice but not fail
-        self.cursor.execute(
-            "SELECT delete_inspection(%s, %s);",
-            (self.inspection_id, self.inspector_id),
-        )
-
-        # Ensure that the inspection and label were deleted
-        self.cursor.execute(
-            "SELECT COUNT(*) FROM inspection WHERE id = %s;",
-            (self.inspection_id,),
-        )
-        inspection_count = self.cursor.fetchone()[0]
-        self.assertEqual(inspection_count, 0, "Inspection should be deleted.")
-
-        self.cursor.execute(
-            "SELECT COUNT(*) FROM label_information WHERE id = %s;",
-            (self.label_info_id,),
-        )
-        label_count = self.cursor.fetchone()[0]
-        self.assertEqual(label_count, 0, "Label information should be deleted.")
-
-        # Ensure that the manufacturer info was not deleted due to foreign key constraints
-        self.cursor.execute(
-            "SELECT COUNT(*) FROM organization_information WHERE id = %s;",
-            (self.manufacturer_info_id,),
-        )
-        manufacturer_count = self.cursor.fetchone()[0]
-        self.assertEqual(
-            manufacturer_count,
-            1,
-            "Manufacturer info should not be deleted due to foreign key constraint.",
-        )
-
-        # Ensure that the company info related to the deleted inspection is deleted
-        self.cursor.execute(
-            "SELECT COUNT(*) FROM organization_information WHERE id = %s;",
-            (self.company_info_id,),
-        )
-        company_count = self.cursor.fetchone()[0]
-        self.assertEqual(
-            company_count,
-            0,
-            "Company info should be deleted since it's linked to the deleted inspection.",
-        )
 
     def test_delete_inspection_unauthorized(self):
         # Generate a random UUID to simulate an unauthorized inspector

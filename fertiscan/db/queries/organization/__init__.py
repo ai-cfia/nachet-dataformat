@@ -3,6 +3,7 @@ This module represent the function for the table organization and its children t
 """
 
 from psycopg import Cursor
+from uuid import UUID
 
 from fertiscan.db.queries.errors import (
     LocationCreationError,
@@ -27,65 +28,71 @@ from fertiscan.db.queries.errors import (
 
 
 @handle_query_errors(OrganizationInformationCreationError)
-def new_organization(cursor: Cursor, information_id, location_id=None):
+def new_organization(cursor: Cursor, name, website, phone_number, address):
     """
-    This function create a new organization in the database.
+    This function create a new organization in the database using a query.
 
     Parameters:
     - cursor (cursor): The cursor of the database.
     - name (str): The name of the organization.
     - website (str): The website of the organization.
     - phone_number (str): The phone number of the organization.
+    - address (str): The address of the organization.
 
     Returns:
     - str: The UUID of the organization
     """
-    if location_id is None:
-        query = """
-            SELECT 
-                location_id
-            FROM
-                organization_information
-            WHERE
-                id = %s
-            """
-        cursor.execute(query, (information_id,))
-        location_id = cursor.fetchone()[0]
     query = """
         INSERT INTO 
             organization (
-                information_id,
-                main_location_id 
+                name,
+                website,
+                phone_number,
+                address 
                 )
         VALUES 
-            (%s, %s)
+            (%s, %s, %s, %s)
         RETURNING 
             id
         """
-    cursor.execute(query, (information_id, location_id))
+    cursor.execute(query, (name, website, phone_number, address))
     if result := cursor.fetchone():
         return result[0]
     raise OrganizationCreationError("Failed to create Organization. No data returned.")
 
 
 @handle_query_errors(OrganizationInformationCreationError)
-def new_organization_info_located(
-    cursor: Cursor, address: str, name: str, website: str, phone_number: str
+def new_organization_information(
+    cursor: Cursor,
+    address: str,
+    name: str,
+    website: str,
+    phone_number: str,
+    label_id: UUID,
+    edited: bool = False,
+    is_main_contact: bool = False,
 ):
     """
-    This function create a new organization information in the database.
+    This function create a new organization information in the database using function.
 
     Parameters:
     - cursor (cursor): The cursor of the database.
     - name (str): The name of the organization.
     - website (str): The website of the organization.
     - phone_number (str): The phone number of the organization.
+    - label_id (str): The UUID of the label.
+    - edited (bool): The edited status of the organization information.
+    - is_main_contact (bool): The main contact status of the organization information.
 
     Returns:
     - str: The UUID of the organization information
     """
+    if label_id is None:
+        raise OrganizationInformationCreationError(
+            "Label ID is required for organization information creation."
+        )
     query = """
-        SELECT new_organization_info_located(%s, %s, %s, %s);
+        SELECT new_organization_information(%s, %s, %s, %s, %s, %s, %s);
         """
     cursor.execute(
         query,
@@ -94,45 +101,10 @@ def new_organization_info_located(
             address,
             website,
             phone_number,
+            edited,
+            label_id,
+            is_main_contact,
         ),
-    )
-    if result := cursor.fetchone():
-        return result[0]
-    raise OrganizationCreationError("Failed to create Organization. No data returned.")
-
-
-@handle_query_errors(OrganizationInformationCreationError)
-def new_organization_info(
-    cursor: Cursor, name, website, phone_number, location_id=None
-):
-    """
-    This function create a new organization information in the database.
-
-    Parameters:
-    - cursor (cursor): The cursor of the database.
-    - name (str): The name of the organization.
-    - website (str): The website of the organization.
-    - phone_number (str): The phone number of the organization.
-
-    Returns:
-    - str: The UUID of the organization information
-    """
-    query = """
-        INSERT INTO 
-            organization_information (
-                name, 
-                website, 
-                phone_number,
-                location_id
-                )
-        VALUES 
-            (%s, %s, %s, %s)
-        RETURNING 
-            id
-        """
-    cursor.execute(
-        query,
-        (name, website, phone_number, location_id),
     )
     if result := cursor.fetchone():
         return result[0]
@@ -156,7 +128,10 @@ def get_organization_info(cursor: Cursor, information_id):
             name, 
             website, 
             phone_number,
-            location_id
+            address,
+            label_id,
+            edited,
+            is_main_contact
         FROM 
             organization_information
         WHERE 
@@ -170,8 +145,40 @@ def get_organization_info(cursor: Cursor, information_id):
     )
 
 
+def get_organizations_info_label(cursor: Cursor, label_id: UUID):
+    """
+    This function get a organization information from the database.
+
+    Parameters:
+    - cursor (cursor): The cursor of the database.
+    - information_id (str): The UUID of the organization information.
+
+    Returns:
+    - tuple: The organization informations
+    """
+    query = """
+        SELECT 
+            name, 
+            website, 
+            phone_number,
+            address,
+            edited,
+            is_main_contact
+        FROM 
+            organization_information
+        WHERE 
+            label_id = %s
+        """
+    cursor.execute(query, (str(label_id),))
+    if result := cursor.fetchall():
+        return result
+    raise OrganizationInformationNotFoundError(
+        "Organization information not found with label_id: " + str(label_id)
+    )
+
+
 @handle_query_errors(OrganizationInformationRetrievalError)
-def get_organizations_info_json(cursor: Cursor, label_id) -> dict:
+def get_organizations_info_json(cursor: Cursor, label_id: UUID) -> dict:
     """
     This function get a organization information from the database.
 
@@ -187,6 +194,29 @@ def get_organizations_info_json(cursor: Cursor, label_id) -> dict:
         """
     cursor.execute(query, (str(label_id),))
 
+    if res := cursor.fetchone():
+        return res[0]
+    raise OrganizationInformationRetrievalError(
+        "Failed to get Registration Numbers with the given label_id. No data returned."
+    )
+
+
+def get_organization_json(cursor: Cursor, fertilizer_id: UUID) -> dict:
+    """
+    This function get a organization information from the database.
+
+    Parameters:
+    - cursor (cursor): The cursor of the database.
+    - fertilizer_id (str): The UUID of a Fertilizer owned by the orgganization.
+
+    Returns:
+    - dict: The organization information
+    """
+    query = """
+        SELECT get_organization_json(%s);
+        """
+    cursor.execute(query, (str(fertilizer_id),))
+
     res = cursor.fetchone()
     if res is None or res[0] is None:
         # raise OrganizationNotFoundError
@@ -200,45 +230,9 @@ def get_organizations_info_json(cursor: Cursor, label_id) -> dict:
         return {}
 
 
-@handle_query_errors(OrganizationUpdateError)
-def update_organization(cursor: Cursor, organization_id, information_id, location_id):
-    """
-    This function update a organization in the database.
-
-    Parameters:
-    - cursor (cursor): The cursor of the database.
-    - organization_id (str): The UUID of the organization.
-    - name (str): The name of the organization.
-    - website (str): The website of the organization.
-    - phone_number (str): The phone number of the organization.
-    - location_id (str): The UUID of the location.
-
-    Returns:
-    - str: The UUID of the organization
-    """
-    query = """
-        UPDATE 
-            organization
-        SET 
-            information_id = COALESCE(%s,information_id),
-            main_location_id = COALESCE(%s,main_location_id)
-        WHERE 
-            id = %s
-        """
-    cursor.execute(
-        query,
-        (
-            information_id,
-            location_id,
-            organization_id,
-        ),
-    )
-    return organization_id
-
-
 @handle_query_errors(OrganizationInformationUpdateError)
 def update_organization_info(
-    cursor: Cursor, information_id, name, website, phone_number
+    cursor: Cursor, information_id: UUID, name, website, phone_number
 ):
     """
     This function update a organization information in the database.
@@ -269,14 +263,58 @@ def update_organization_info(
             name,
             website,
             phone_number,
-            information_id,
+            str(information_id),
         ),
     )
     return information_id
 
 
+def upsert_organization_info(cursor: Cursor, organization_info, label_id: UUID):
+    """
+    This function upserts an organization information in the database.
+
+    Parameters:
+    - cursor (cursor): The cursor of the database.
+    - organization_info (JSON: string): The organization information in a json.
+
+    Returns:
+    - json: The array of the organization information
+    """
+    query = """
+        SELECT upsert_organization_info(%s, %s);
+        """
+    cursor.execute(
+        query,
+        (
+            organization_info,
+            str(label_id),
+        ),
+    )
+    return cursor.fetchone()[0]
+
+
+def upsert_organization(cursor: Cursor, organization_info_id: UUID):
+    """
+    This function upserts an organization information in the database.
+
+    Parameters:
+    - cursor (cursor): The cursor of the database.
+    - organization_info (JSON: string): The organization information in a json.
+
+    Returns:
+    - str: The UUID of the organization information
+    """
+    query = """
+        SELECT upsert_organization(%s);
+        """
+    cursor.execute(query, (str(organization_info_id),))
+    if result := cursor.fetchone():
+        return result[0]
+    raise OrganizationUpdateError("Failed to update Organization. No data returned.")
+
+
 @handle_query_errors(OrganizationRetrievalError)
-def get_organization(cursor: Cursor, organization_id):
+def get_organization(cursor: Cursor, organization_id: UUID):
     """
     This function get a organization from the database.
 
@@ -285,18 +323,20 @@ def get_organization(cursor: Cursor, organization_id):
     - organization_id (str): The UUID of the organization.
 
     Returns:
-    - dict: The organization
+    - tuple: The organization
     """
     query = """
         SELECT 
-            information_id,
-            main_location_id 
+            name,
+            website,
+            phone_number,
+            address 
         FROM 
             organization
         WHERE 
             id = %s
         """
-    cursor.execute(query, (organization_id,))
+    cursor.execute(query, (str(organization_id),))
     if result := cursor.fetchone():
         return result
     raise OrganizationNotFoundError(
@@ -320,22 +360,22 @@ def get_full_organization(cursor: Cursor, org_id):
     query = """
         SELECT 
             organization.id, 
-            information.name, 
-            information.website, 
-            information.phone_number,
+            organization.name, 
+            organization.website, 
+            organization.phone_number,
+            organization.address,
             location.id, 
             location.name,
             location.address,
+            location.address_number,
+            location.city,
+            location.postal_code,
             region.id,
             region.name,
             province.id,
             province.name
         FROM
             organization
-        LEFT JOIN
-            organization_information as information
-        ON
-            organization.information_id = information.id
         LEFT JOIN
             location
         ON
@@ -376,7 +416,7 @@ def new_location(cursor: Cursor, name, address, region_id, org_id=None):
                 name, 
                 address, 
                 region_id,
-                owner_id 
+                organization_id 
                 )
         VALUES 
             (%s, %s, %s, %s)
@@ -414,7 +454,7 @@ def get_location(cursor: Cursor, location_id):
             name, 
             address, 
             region_id,
-            owner_id 
+            organization_id 
         FROM 
             location
         WHERE 

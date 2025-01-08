@@ -1,7 +1,7 @@
 
-drop FUNCTION IF EXISTS "fertiscan_0.0.17".update_registration_number;
+drop FUNCTION IF EXISTS "fertiscan_0.0.18".update_registration_number;
 -- Function to update guaranteed analysis: delete old and insert new
-CREATE OR REPLACE FUNCTION "fertiscan_0.0.17".update_registration_number(
+CREATE OR REPLACE FUNCTION "fertiscan_0.0.18".update_registration_number(
     p_label_id uuid,
     new_registration_numbers jsonb
 )

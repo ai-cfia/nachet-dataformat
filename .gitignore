@@ -7,3 +7,4 @@ ml_structure.json
 .DS_Store
 .venv
 venv
+.vscode/extensions.json

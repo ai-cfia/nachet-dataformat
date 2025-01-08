@@ -2,20 +2,26 @@
     "inspection_id": "61c93c2f-78ae-4f90-be3c-fc888087bfb9",
     "inspection_comment": "",
     "verified": false,
-    "company": {
-        "id": "dbd48ad7-3d3d-4b93-affc-55a427f11331",
-        "name": "GreenGrow Fertilizers Inc.",
-        "address": "123 Greenway Blvd, Springfield IL 62701 USA",
-        "website": "www.greengrowfertilizers.com",
-        "phone_number": "+1 800 555 0199"
-    },
-    "manufacturer": {
-        "id": "fb3b5366-0bc0-49a3-9f2b-1c860a337b8c",
-        "name": "AgroTech Industries Ltd.",
-        "address": "456 Industrial Park Rd, Oakville ON L6H 5V4 Canada",
-        "website": "www.agrotechindustries.com",
-        "phone_number": "+1 416 555 0123"
-    },
+    "organizations": [
+      {
+          "id": "dbd48ad7-3d3d-4b93-affc-55a427f11331",
+          "name": "GreenGrow Fertilizers Inc.",
+          "address": "123 Greenway Blvd, Springfield IL 62701 USA",
+          "website": "www.greengrowfertilizers.com",
+          "phone_number": "+1 800 555 0199",
+          "edited": false,
+          "is_main_contact": true
+      },
+      {
+          "id": "fb3b5366-0bc0-49a3-9f2b-1c860a337b8c",
+          "name": "AgroTech Industries Ltd.",
+          "address": "456 Industrial Park Rd, Oakville ON L6H 5V4 Canada",
+          "website": "www.agrotechindustries.com",
+          "phone_number": "+1 416 555 0123",
+          "edited": false,
+          "is_main_contact": false
+      }
+    ],
     "product": {
         "name": "SuperGrow 20-20-20",
         "label_id": "cdca3638-a3c0-45df-8c72-74e28a8740c6",

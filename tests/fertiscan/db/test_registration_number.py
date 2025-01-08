@@ -12,7 +12,7 @@ from datastore.db.metadata import validator
 from fertiscan.db.metadata.inspection import RegistrationNumber
 from fertiscan.db.queries import label, registration_number
 
-DB_CONNECTION_STRING = os.environ.get("FERTISCAN_DB_URL_TESTING")
+DB_CONNECTION_STRING = os.environ.get("FERTISCAN_DB_URL")
 if DB_CONNECTION_STRING is None or DB_CONNECTION_STRING == "":
     raise ValueError("FERTISCAN_DB_URL is not set")
 
@@ -50,8 +50,6 @@ class test_registration_number(unittest.TestCase):
             None,
             None,
             False,
-            None,
-            None,
             None,
         )
 

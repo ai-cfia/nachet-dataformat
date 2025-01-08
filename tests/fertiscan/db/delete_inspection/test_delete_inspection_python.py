@@ -14,7 +14,7 @@ from fertiscan.db.queries.inspection import (
 load_dotenv()
 
 # Constants for test configuration
-TEST_DB_CONNECTION_STRING = os.environ.get("FERTISCAN_DB_URL_TESTING")
+TEST_DB_CONNECTION_STRING = os.environ.get("FERTISCAN_DB_URL")
 if not TEST_DB_CONNECTION_STRING:
     raise ValueError("FERTISCAN_DB_URL is not set")
 

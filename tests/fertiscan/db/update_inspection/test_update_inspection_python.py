@@ -4,8 +4,8 @@ import os
 import unittest
 
 from dotenv import load_dotenv
-from psycopg import connect
 
+import datastore.db.__init__ as db
 from fertiscan import get_full_inspection_json
 from fertiscan.db.metadata.inspection import Inspection
 from fertiscan.db.queries.inspection import update_inspection
@@ -13,12 +13,12 @@ from fertiscan.db.queries.inspection import update_inspection
 load_dotenv()
 
 # Constants for test configuration
-TEST_DB_CONNECTION_STRING = os.environ.get("FERTISCAN_DB_URL_TESTING")
-if not TEST_DB_CONNECTION_STRING:
+DB_CONNECTION_STRING = os.environ.get("FERTISCAN_DB_URL")
+if not DB_CONNECTION_STRING:
     raise ValueError("FERTISCAN_DB_URL is not set")
 
-TEST_DB_SCHEMA = os.environ.get("FERTISCAN_SCHEMA_TESTING")
-if not TEST_DB_SCHEMA:
+DB_SCHEMA = os.environ.get("FERTISCAN_SCHEMA_TESTING")
+if not DB_SCHEMA:
     raise ValueError("FERTISCAN_SCHEMA_TESTING is not set")
 
 TEST_INSPECTION_JSON_PATH = "tests/fertiscan/inspection.json"
@@ -26,12 +26,10 @@ TEST_INSPECTION_JSON_PATH = "tests/fertiscan/inspection.json"
 
 class TestInspectionUpdatePythonFunction(unittest.TestCase):
     def setUp(self):
-        # Set up database connection and cursor
-        self.conn = connect(
-            TEST_DB_CONNECTION_STRING, options=f"-c search_path={TEST_DB_SCHEMA},public"
-        )
-        self.conn.autocommit = False
-        self.cursor = self.conn.cursor()
+        # Connect to the PostgreSQL database with the specified schema
+        self.conn = db.connect_db(DB_CONNECTION_STRING, DB_SCHEMA)
+        self.cursor = db.cursor(self.conn)
+        db.create_search_path(self.conn, self.cursor, DB_SCHEMA)
 
         # Create a user to act as inspector
         self.cursor.execute(
@@ -76,7 +74,7 @@ class TestInspectionUpdatePythonFunction(unittest.TestCase):
         new_value = 66.6
 
         # Update model fields instead of dictionary keys
-        altered_inspection.company.name = "Updated Company Name"
+        altered_inspection.organizations[0].name = "Updated Company Name"
         altered_inspection.product.metrics.weight[0].value = new_value
         altered_inspection.product.metrics.density.value = new_value
         altered_inspection.guaranteed_analysis.en[0].value = new_value
@@ -99,7 +97,7 @@ class TestInspectionUpdatePythonFunction(unittest.TestCase):
 
         # Assertions using the Inspection model
         self.assertEqual(
-            updated_inspection.company.name,
+            updated_inspection.organizations[0].name,
             "Updated Company Name",
             "The company name should reflect the update.",
         )

@@ -1,5 +1,5 @@
 
-CREATE OR REPLACE FUNCTION "fertiscan_0.0.17".get_ingredients_json(
+CREATE OR REPLACE FUNCTION "fertiscan_0.0.18".get_ingredients_json(
 label_info_id uuid)
 RETURNS jsonb 
 LANGUAGE plpgsql

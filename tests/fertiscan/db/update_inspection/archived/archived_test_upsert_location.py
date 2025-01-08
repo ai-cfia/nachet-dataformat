@@ -4,10 +4,11 @@ import unittest
 import psycopg
 from dotenv import load_dotenv
 
+
 load_dotenv()
 
 # Fetch database connection URL and schema from environment variables
-DB_CONNECTION_STRING = os.environ.get("FERTISCAN_DB_URL_TESTING")
+DB_CONNECTION_STRING = os.environ.get("FERTISCAN_DB_URL")
 if DB_CONNECTION_STRING is None or DB_CONNECTION_STRING == "":
     raise ValueError("FERTISCAN_DB_URL is not set")
 

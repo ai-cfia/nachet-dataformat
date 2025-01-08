@@ -26,9 +26,7 @@ def new_label_information(
     title_en: str,
     title_fr: str,
     is_minimal: bool,
-    company_info_id,
-    manufacturer_info_id,
-    record_keeping,
+    record_keeping: bool,
 ):
     """
     This function create a new label_information in the database.
@@ -43,14 +41,13 @@ def new_label_information(
     - title_en (str): The english title of the guaranteed analysis.
     - title_fr (str): The french title of the guaranteed analysis.
     - is_minimal (bool): if the tital is minimal for the guaranteed analysis.
-    - company_info_id (str): The UUID of the company.
-    - manufacturer_info_id (str): The UUID of the manufacturer.
+    - record_keeping (bool): if the label is a record keeping.
 
     Returns:
     - str: The UUID of the label_information
     """
     query = """
-    SELECT new_label_information(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+    SELECT new_label_information(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
         """
     cursor.execute(
         query,
@@ -64,8 +61,6 @@ def new_label_information(
             title_en,
             title_fr,
             is_minimal,
-            company_info_id,
-            manufacturer_info_id,
             record_keeping,
         ),
     )
@@ -110,8 +105,6 @@ def get_label_information(cursor: Cursor, label_information_id: str) -> dict:
             guaranteed_title_en,
             guaranteed_title_fr,
             title_is_minimal,
-            company_info_id,
-            manufacturer_info_id,
             record_keeping
         FROM 
             label_information
@@ -161,10 +154,7 @@ def get_label_dimension(cursor, label_id):
     query = """
         SELECT 
             "label_id",
-            "company_info_id",
-            "company_location_id",
-            "manufacturer_info_id",
-            "manufacturer_location_id",
+            "organization_info_ids",
             "instructions_ids",
             "cautions_ids",
             "first_aid_ids",
@@ -188,3 +178,21 @@ def get_label_dimension(cursor, label_id):
             "Error: could not get the label dimension for label: " + str(label_id)
         )
     return data
+
+
+def delete_label_info(cursor: Cursor, label_id: str):
+    """
+    This function deletes a label information from the database.
+
+    Parameters:
+    - cursor (cursor): The cursor of the database.
+    - label_id (str): The UUID of the label information.
+
+    Returns:
+    - int: The number of rows affected by the query. (should be at least one)
+    """
+    query = """
+    DELETE FROM label_information WHERE id = %s;
+    """
+    cursor.execute(query, (label_id,))
+    return cursor.rowcount

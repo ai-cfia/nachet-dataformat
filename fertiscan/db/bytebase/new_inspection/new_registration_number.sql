@@ -1,6 +1,6 @@
 
-DROP FUNCTION IF EXISTS "fertiscan_0.0.17".new_registration_number(TEXT, UUID,BOOLEAN, TEXT, BOOLEAN);
-CREATE OR REPLACE FUNCTION "fertiscan_0.0.17".new_registration_number(
+DROP FUNCTION IF EXISTS "fertiscan_0.0.18".new_registration_number(TEXT, UUID,BOOLEAN, TEXT, BOOLEAN);
+CREATE OR REPLACE FUNCTION "fertiscan_0.0.18".new_registration_number(
     identifier TEXT,
     label_info_id UUID,
     is_an_ingredient_val BOOLEAN DEFAULT NULL,

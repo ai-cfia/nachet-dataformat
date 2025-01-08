@@ -131,6 +131,7 @@ def is_inspection_verified(cursor: Cursor, inspection_id):
         "Failed to check inspection verification status. No data returned."
     )
 
+
 VERIFIED = 0
 UPLOAD_DATE = 1
 UPDATED_AT = 2
@@ -245,8 +246,6 @@ def get_inspection_fk(cursor: Cursor, inspection_id):
             inspection.label_info_id,
             inspection.inspector_id,
             inspection.picture_set_id,
-            label_info.company_info_id,
-            label_info.manufacturer_info_id,
             inspection.fertilizer_id,
             inspection.sample_id
         FROM 
@@ -284,7 +283,6 @@ def get_all_user_inspection_filter_verified(cursor: Cursor, user_id, verified: b
             inspection.picture_set_id as picture_set_id,
             label_info.id as label_info_id,
             label_info.product_name as product_name,
-            label_info.manufacturer_info_id as manufacturer_info_id,
             company_info.id as company_info_id,
             company_info.name as company_name
         FROM 
@@ -296,7 +294,7 @@ def get_all_user_inspection_filter_verified(cursor: Cursor, user_id, verified: b
         LEFT JOIN
             organization_information as company_info
         ON
-            label_info.company_info_id = company_info.id
+            label_info.id = company_info.label_id AND company_info.is_main_contact = TRUE
         WHERE 
             inspection.inspector_id = %s AND inspection.verified = %s
         """

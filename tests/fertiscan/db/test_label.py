@@ -6,7 +6,7 @@ import datastore.db as db
 from datastore.db.metadata import validator
 from fertiscan.db.queries import label
 
-DB_CONNECTION_STRING = os.environ.get("FERTISCAN_DB_URL_TESTING")
+DB_CONNECTION_STRING = os.environ.get("FERTISCAN_DB_URL")
 if DB_CONNECTION_STRING is None or DB_CONNECTION_STRING == "":
     raise ValueError("FERTISCAN_DB_URL is not set")
 
@@ -31,8 +31,6 @@ class test_label(unittest.TestCase):
         self.guaranteed_analysis_title_en = "guaranteed_analysis"
         self.guaranteed_analysis_title_fr = "analyse_garantie"
         self.guaranteed_is_minimal = False
-        self.company_info_id = None
-        self.manufacturer_info_id = None
 
     def tearDown(self):
         self.con.rollback()
@@ -50,8 +48,6 @@ class test_label(unittest.TestCase):
             self.guaranteed_analysis_title_en,
             self.guaranteed_analysis_title_fr,
             self.guaranteed_is_minimal,
-            self.company_info_id,
-            self.manufacturer_info_id,
             None,
         )
         self.assertTrue(validator.is_valid_uuid(label_information_id))
@@ -68,8 +64,6 @@ class test_label(unittest.TestCase):
             self.guaranteed_analysis_title_en,
             self.guaranteed_analysis_title_fr,
             self.guaranteed_is_minimal,
-            self.company_info_id,
-            self.manufacturer_info_id,
             None,
         )
         label_data = label.get_label_information(self.cursor, label_information_id)
@@ -85,7 +79,6 @@ class test_label(unittest.TestCase):
         self.assertEqual(label_data[8], self.guaranteed_analysis_title_fr)
         self.assertEqual(label_data[9], self.guaranteed_is_minimal)
         self.assertIsNone(label_data[10])
-        self.assertIsNone(label_data[11])
 
     def test_get_label_information_json(self):
         label_information_id = label.new_label_information(
@@ -99,8 +92,6 @@ class test_label(unittest.TestCase):
             self.guaranteed_analysis_title_en,
             self.guaranteed_analysis_title_fr,
             self.guaranteed_is_minimal,
-            None,
-            None,
             None,
         )
         label_data = label.get_label_information_json(self.cursor, label_information_id)

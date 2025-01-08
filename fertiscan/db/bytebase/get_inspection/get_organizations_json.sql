@@ -1,46 +1,57 @@
-CREATE OR REPLACE FUNCTION "fertiscan_0.0.17".get_organizations_information_json(
-label_id uuid)
+
+--Unverified organization data
+DROP FUNCTION IF EXISTS "fertiscan_0.0.18".get_organizations_information_json(label_id_value uuid);
+CREATE OR REPLACE FUNCTION "fertiscan_0.0.18".get_organizations_information_json(
+label_id_value uuid)
 RETURNS jsonb 
 LANGUAGE plpgsql
 AS $function$
 DECLARE
     result_json jsonb;
 BEGIN
-    SELECT jsonb_agg(jsonb_build_object(
-        CASE 
-            WHEN org.id = label_info.manufacturer_info_id THEN 'manufacturer'
-            WHEN org.id = label_info.company_info_id THEN 'company'
-            ELSE 'organization'
-        end, 
-            jsonb_build_object(
-                'id',  COALESCE(org.id, Null),
-                'name',  COALESCE(org.name, Null),
-                'address',  COALESCE(location.address, Null),
-                'phone_number',  COALESCE(org.phone_number, Null),
-                'website',  COALESCE(org.website, Null)
-            )
-    ))
+    SELECT jsonb_build_object(
+        'organizations',
+            COALESCE(jsonb_agg(
+                jsonb_build_object(
+                    'id',  COALESCE(org.id, Null),
+                    'name',  COALESCE(org.name, Null),
+                    'address',  COALESCE(org.address, Null),
+                    'phone_number',  COALESCE(org.phone_number, Null),
+                    'website',  COALESCE(org.website, Null),
+                    'edited',  COALESCE(org.edited, Null),
+                    'is_main_contact',  COALESCE(org.is_main_contact, Null)
+                )
+            ), '[]'::jsonb)
+    )
     INTO result_json
     FROM organization_information as org
-    JOIN (
-        SELECT 
-            company_info_id,
-            manufacturer_info_id
-        FROM 
-            label_information
-        WHERE 
-            id = label_id
-        LIMIT 1
-    ) AS label_info
-    ON org.id = label_info.company_info_id OR org.id = label_info.manufacturer_info_id
-    Left JOIN (
-        SELECT
-            id,
-            address
-        FROM
-            location
-    ) AS location
-    ON org.location_id = location.id;
+    WHERE org.label_id = label_id_value;
+    RETURN result_json;
+END;
+$function$;
+
+-- verified organization 
+DROP FUNCTION IF EXISTS "fertiscan_0.0.18".get_organizations_json();
+CREATE OR REPLACE FUNCTION "fertiscan_0.0.18".get_organizations_json()
+RETURNS jsonb
+LANGUAGE plpgsql
+AS $function$
+DECLARE
+    result_json jsonb;
+BEGIN
+    SELECT jsonb_build_object(
+        'organizations',
+        jsonb_agg(jsonb_build_object(
+                'id',  COALESCE(org.id, Null),
+                'name',  COALESCE(org.name, Null),
+                'address',  COALESCE(org.address, Null),
+                'phone_number',  COALESCE(org.phone_number, Null),
+                'website',  COALESCE(org.website, Null),
+                'updated_at',  COALESCE(org.updated_at, Null)
+        )
+    ))
+    INTO result_json
+    FROM organization_information as org;
     RETURN result_json;
 END;
 $function$;

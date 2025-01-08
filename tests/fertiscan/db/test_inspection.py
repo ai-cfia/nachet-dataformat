@@ -11,7 +11,7 @@ from datastore.db.metadata import picture_set, validator
 from datastore.db.queries import picture, user
 from fertiscan.db.queries import inspection
 
-DB_CONNECTION_STRING = os.environ.get("FERTISCAN_DB_URL_TESTING")
+DB_CONNECTION_STRING = os.environ.get("FERTISCAN_DB_URL")
 if DB_CONNECTION_STRING is None or DB_CONNECTION_STRING == "":
     raise ValueError("FERTISCAN_DB_URL is not set")
 
