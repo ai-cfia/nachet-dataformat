@@ -174,7 +174,11 @@ class TestUploadImage(unittest.TestCase):
         # self.container_client.upload_blob(name=self.blob_name, data=self.blob)
         self.folder_name = "test_folder"
         self.folder_uuid = str(uuid.uuid4())
-        asyncio.run(create_folder(self.container_client, self.folder_name))
+        asyncio.run(
+            create_folder(
+                self.container_client, self.folder_uuid, None, self.folder_name
+            )
+        )
 
     def tearDown(self):
         self.container_client.delete_container()
@@ -220,21 +224,26 @@ class TestIsAFolder(unittest.TestCase):
         self.container_client = self.blob_service_client.create_container(
             self.container_name
         )
+        self.folder_uuid = str(uuid.uuid4())
         self.folder_name = "test_folder"
-        asyncio.run(create_folder(self.container_client, self.folder_name))
+        asyncio.run(
+            create_folder(
+                self.container_client, str(self.folder_uuid), None, self.folder_name
+            )
+        )
 
     def tearDown(self):
         self.container_client.delete_container()
 
     def test_is_a_folder(self):
         self.assertTrue(self.container_client.exists())
-        result = asyncio.run(is_a_folder(self.container_client, self.folder_name))
+        result = asyncio.run(is_a_folder(self.container_client, str(self.folder_uuid)))
         self.assertTrue(result)
 
     def test_is_not_a_folder(self):
         self.assertTrue(self.container_client.exists())
-        not_folder_name = "not_folder"
-        result = asyncio.run(is_a_folder(self.container_client, not_folder_name))
+        not_folder_uuid = str(uuid.uuid4())
+        result = asyncio.run(is_a_folder(self.container_client, not_folder_uuid))
         self.assertFalse(result)
 
 
@@ -248,26 +257,43 @@ class TestCreateFolder(unittest.TestCase):
         self.container_client = self.blob_service_client.create_container(
             self.container_name
         )
+        self.folder_name = "test_folder"
+        self.folder_uuid = str(uuid.uuid4())
 
     def tearDown(self):
         self.container_client.delete_container()
 
     def test_create_folder(self):
-        folder_name = "test_folder"
-        result = asyncio.run(create_folder(self.container_client, folder_name))
+        result = asyncio.run(
+            create_folder(
+                self.container_client, self.folder_uuid, None, self.folder_name
+            )
+        )
         self.assertTrue(result)
+        expected_name = build_blob_name(self.folder_name, self.folder_uuid, "json")
+        blob_name = self.container_client.list_blob_names()
+        for blob_obj in blob_name:
+            self.assertEqual(blob_obj, expected_name)
 
     def test_create_existing_folder(self):
-        folder_name = "test_folder"
-        asyncio.run(create_folder(self.container_client, folder_name))
+        result = asyncio.run(
+            create_folder(
+                self.container_client, self.folder_uuid, None, self.folder_name
+            )
+        )
+        self.assertTrue(result)
         with self.assertRaises(CreateDirectoryError):
-            asyncio.run(create_folder(self.container_client, folder_name))
+            asyncio.run(
+                create_folder(
+                    self.container_client, str(uuid.uuid4()), None, self.folder_name
+                )
+            )
 
     def test_create_folder_error(self):
         folder_name = "tessst_folder"
         mock_container_client = Mock()
-        mock_container_client.list_blobs.side_effect = FolderListError(
-            "Resource not found"
+        mock_container_client.list_blobs.side_effect = Exception(
+            "Mocking Resource not found"
         )
         with self.assertRaises(CreateDirectoryError):
             asyncio.run(create_folder(mock_container_client, folder_name))
@@ -337,7 +363,9 @@ class TestGetBlobsFromTag(unittest.TestCase):
         self.folder_name = "test_folder"
         self.folder_uuid = str(uuid.uuid4())
         asyncio.run(
-            create_folder(self.container_client, self.folder_uuid, self.folder_name)
+            create_folder(
+                self.container_client, self.folder_uuid, None, self.folder_name
+            )
         )
         asyncio.run(
             upload_image(
@@ -353,17 +381,16 @@ class TestGetBlobsFromTag(unittest.TestCase):
         self.container_client.delete_container()
 
     def test_get_blobs_from_tag(self):
-        tag = "test_folder"
-        try:
-            result = asyncio.run(get_blobs_from_tag(self.container_client, tag))
-            self.assertGreater(len(result), 0)
-        except Exception as e:
-            print(f"Test failed with exception: {e}")
+        tag = "picture_set_uuid"
+        result = asyncio.run(
+            get_blobs_from_tag(self.container_client, tag, str(self.folder_uuid))
+        )
+        self.assertGreater(len(result), 0)
 
-    def test_get_blobs_from_tag_error(self):
-        tag = "wrong_tag"
-        with self.assertRaises(Exception):
-            asyncio.run(get_blobs_from_tag(self.container_client, tag))
+    def test_get_blobs_from_wrong_tag_value(self):
+        tag = "picture_set_uuid"
+        res = asyncio.run(get_blobs_from_tag(self.container_client, tag, "something"))
+        self.assertEqual(len(res), 0)
 
 
 class TestGetDirectories(unittest.TestCase):

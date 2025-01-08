@@ -1,82 +1,10 @@
-# Datastore
+# Datastore module
 
-Welcome to the Datastore - the integral data management layer of the Nachet and
-FertiScan solution serving a dual function role. As a central repository, it
-efficiently manages multimedia storage in the blob storage server while
-concurrently ensuring accurate metadata registration into a database server.
-
-## Robust Multimedia Storage
-
-The essential function of our Datastore is to manage the multimedia storage
-effectively within the blob storage server. With support for a variety of media
-formats and efficient indexing techniques, the smooth retrieval and access of
-data are assured.
-
-```Structure
-
-Storage account:
-│     
-│  Container:
-└───user-8367cc4e-1b61-42c2-a061-ca8662aeac37
-|   | Folder:
-│   └───folder-name/
-|   |  |   fb20146f-df2f-403f-a56f-f02a48092167.json
-│   |  │   f9b0ef75-6276-4ffc-a71c-975bc842063c.tiff
-│   |  │   68e16a78-24bd-4b8c-91b6-75e6b84c40d8.tiff
-│   |  |   ...
-│   |  └─────────────
-|   | Folder:
-│   └───other-folder-name/
-│      |   ...
-│      └─────────────
-|   Container:
-└───user-...
-|   └── ...
-└──────────────────
-
-```
-
-## Efficient Metadata Registration
-
-Coupled with managing multimedia storage, the Datastore also seamlessly
-registers metadata into a database server. This double-edged approach ensures
-not just efficient storage, but also the organization and easy accessibility of
-your valuable data.
-
-``` mermaid
-
----
-title: Project Layers
----
-flowchart LR;
-    FE(Frontend)
-    BE(Backend)
-    file[/Client/]
-    classDef foo stroke:#f00
-
-    file ==> FE
-    FE-->BE
-    MD(Datastore)
-    DB[(Database)] 
-    blob[(Blob Storage)]
-    ML[(AI Models)]
-    BE --> MD
-    BE -- pipeline --->ML
-    MD --> DB
-    MD --> blob
-```
-
-### Datastore module
-
-The Datastore module assures the CRUD workflow of the following high level entitites.
+## Module classes
 
 ```mermaid
----
-title: Project Layers
----
+
 classDiagram
-
-
     class Folder {
         UUID id
         str name
@@ -100,14 +28,13 @@ classDiagram
     class ContainerController {
         UUID id
         Optional~Container~ model
-        Optional~ContainerClient~ container_client
+        Optional~ azure.storage.blob.ContainerClient~ container_client
         +__init__(self, id: UUID)
+        -__remove_folder_and_children(self, folder_id: UUID)
+        -__build_children_path(self, folder_id: UUID)
         +fetch_all_folders_metadata(self, cursor: Cursor)
-        +__build_children_path(self, folder_id: UUID)
         +fetch_all_data(self, cursor: Cursor)
-        +__remove_folder_and_children(self, folder_id: UUID)
         +get_container_client(self, connection_str: str, credentials: str)
-        +get_id(self)
         +add_user(self, cursor: Cursor, user_id: UUID, performed_by: UUID)
         +remove_user(self, cursor: Cursor, user_id: UUID)
         +add_group(self, cursor: Cursor, group_id: UUID, performed_by: UUID)
@@ -153,19 +80,19 @@ classDiagram
         +remove_user(self, cursor: Cursor, user_id: UUID)
     }
 
-    Folder <.. ContainerController : model
+    Folder <-- ContainerController : CRUD
+    Folder *.. Container
     Container <.. ContainerController: model
     Client <.. ClientController: model
     ClientController<|-- User
     ClientController<|--Group
+
 ```
 
-## Database Architecture
+## Module DB representation
 
 ```mermaid
----
-title: Current Schema
----
+
 erDiagram
     USERS {
         UUID id PK
@@ -228,22 +155,94 @@ erDiagram
     USERS ||--o{ CONTAINER_USER : "individual access"
     CONTAINER ||--o{ CONTAINER_USER : "access to"
     GROUPS ||--o{ CONTAINER_GROUP : "access to"
+
 ```
 
-  For more detail on each app database architecture go check [Nachet
-  Architecture](../../nachet/doc/nachet-architecture.md) and [Fertiscan
-  Architecture](../../fertiscan/doc/fertiScan-architecture.md).
+## Create User
 
-### Global Needs
+```mermaid
 
-- A User must be able to take a picture on the app, it must be saved in the
-  blob Storage and also tracked into the DB.
+sequenceDiagram
+    actor User
+    participant App as Datastore
+    participant DB as Database
+    participant Azure as Azure Storage
 
-- A User can upload a batch on pictures.
+    User ->> App: new_user(cursor, email, connection_string, tier)
+    App ->> DB: Check if user is registered (is_user_registered)
+    DB -->> App: Return result
+    alt User already exists
+        App ->> User: Raise UserAlreadyExistsError
+    else
+        Activate App
+        App ->> DB: Register the user (register_user)
+        DB -->> App: Return user_uuid
+        create participant UC as User 
+        App ->> UC: init(id,email,tier)
+        UC -->> App: Return User object
+        App ->> UC : create_user_container()
+        Activate UC
+        UC ->> DB: create_container()
+        create participant Container as Container
+        UC ->> Container: init(id,storage-prefix,name,is_public)
+        Container -->>UC: Return Container object
+        UC ->> Container: create_storage()
+        Activate Container
+        Container ->> Azure: create_container(<prefix-id>)
+        Container ->> Container: update self.container_client
+        Container -->>UC: Return Container object
+        Deactivate Container
+        UC ->> Container: add_user()
+        UC ->> Container: create_folder(name="General")
+        Activate Container
+        Container ->> DB: create picture_set
+        Container ->> Azure: create_blob() for indexing the folder
+        Container ->> Container: create a Folder model
+        Container ->>Container: self.folders[id] = Folder model
+        Container -->>UC: Return folder_id
+        deactivate Container
+        UC ->> UC: self.containers.append(container_obj)
+        UC -->> App: Returns Container object
+        deactivate UC
+        App --> User: Returns User Object
+    
+        Deactivate App
+    end
 
-- A User can verify the result of a picture that went through the pipeline and
-  the changes are saved for training.
+```
 
-- A User can create a group of User
+## Create Container
 
-- A User can manage who (User & Group) has access to their containers
+```mermaid
+
+sequenceDiagram
+    actor User
+    participant App as Datastore
+    participant DB as Database
+    participant Azure as Azure Storage
+
+    User ->> App: create_container(cursor, connection_str, container_name, user_id, is_public, storage_prefix, add_user_to_storage)
+    Activate App
+    App ->> DB: create_container()
+    DB -->> App: Return container_id
+    create participant Container
+    App ->> Container: init(id,prefix,name,is_public)
+    Container -->> App: Returns Container object
+    App ->> Container: create_storage()
+    Activate Container
+    Container ->> Azure: create_container(<prefix-id>)
+    Container ->> Container: update self.container_client
+    Container -->>App: Return Container object
+    Deactivate Container
+    App ->> Container: create_folder(name="Général")
+    Activate Container 
+    Container ->> DB: create picture_set
+    Container ->> Azure: create_blob() for indexing the folder
+    Container ->> Container: create a Folder model
+    Container ->>Container: self.folders[id] = Folder model
+    Container -->> App: Return folder_id
+    deactivate Container
+    App ->> User: Return Container object
+    Deactivate App
+
+```

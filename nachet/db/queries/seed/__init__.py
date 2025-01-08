@@ -54,6 +54,28 @@ def get_all_seeds(cursor):
         return cursor.fetchall()
     except Exception:
         raise Exception("Error: seeds could not be retrieved")    
+    
+def format_seed_name(seed_name: str) -> str:
+    """
+    This function formats the seed name.
+
+    Parameters:
+    - seed_name (str): Name of the seed
+
+    Returns:
+    - The formatted seed name.
+    """
+
+    valid = False
+    current_name = seed_name
+    while (not valid) & (current_name != ""):
+        current_name = current_name.strip()
+        if current_name[0].isdigit():
+            current_name = current_name[1:]
+        else:
+            valid = True
+    # Check if initial character is a number
+    return current_name
 
 
 def get_seed_id(cursor, seed_name: str) -> str:
@@ -68,6 +90,7 @@ def get_seed_id(cursor, seed_name: str) -> str:
     - The UUID of the seed.
     """
     try:
+        seed_name = format_seed_name(seed_name)
         query = """
             SELECT 
                 id 
@@ -81,7 +104,7 @@ def get_seed_id(cursor, seed_name: str) -> str:
         result = cursor.fetchone()[0]
         return result
     except TypeError:
-        raise SeedNotFoundError("Error: seed not found")
+        raise SeedNotFoundError(f"Error: seed {seed_name} not found")
     except Exception:
         raise Exception("unhandled error")
 

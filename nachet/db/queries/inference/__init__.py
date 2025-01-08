@@ -61,9 +61,8 @@ def new_inference(cursor, inference, user_id: str, picture_id:str,type, pipeline
         )
         inference_id=cursor.fetchone()[0]
         return inference_id
-    except Exception:
-        raise InferenceCreationError("Error: inference not uploaded")
-
+    except Exception as e:
+        raise InferenceCreationError("Error: inference not uploaded " + str(e))
 
 def get_inference(cursor, inference_id: str):
     """
@@ -348,7 +347,7 @@ def get_inference_object(cursor, inference_object_id: str):
                 valid,
                 top_id,
                 upload_date,
-                update_at
+                updated_at
             FROM 
                 object
             WHERE 
@@ -405,13 +404,13 @@ def set_inference_object_top_id(cursor, inference_object_id: str, top_id:str):
                 object
             SET
                 top_id = %s,
-                update_at = now()
+                updated_at = now()
             WHERE 
                 id = %s
             """
         cursor.execute(query, (top_id,inference_object_id))
-    except Exception:
-        raise Exception(f"Error: could not set top_id {top_id} for inference {inference_object_id}")
+    except Exception as e:
+        raise Exception(f"Error: could not set top_id {top_id} for inference {inference_object_id}" + str(e))
     
 def get_inference_object_top_id(cursor, inference_object_id: str):
     """
