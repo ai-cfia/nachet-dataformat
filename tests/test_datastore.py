@@ -7,8 +7,7 @@ import asyncio
 import io
 import os
 import unittest
-import uuid
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from PIL import Image
 

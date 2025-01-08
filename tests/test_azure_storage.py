@@ -272,8 +272,8 @@ class TestCreateFolder(unittest.TestCase):
         self.assertTrue(result)
         expected_name = build_blob_name(self.folder_name, self.folder_uuid, "json")
         blob_name = self.container_client.list_blob_names()
-        for blob in blob_name:
-            self.assertEqual(blob, expected_name)
+        for blob_obj in blob_name:
+            self.assertEqual(blob_obj, expected_name)
 
     def test_create_existing_folder(self):
         result = asyncio.run(
