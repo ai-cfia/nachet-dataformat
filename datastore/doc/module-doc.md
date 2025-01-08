@@ -87,7 +87,7 @@ classDiagram
     ClientController<|-- User
     ClientController<|--Group
 
-```    
+```
 
 ## Module DB representation
 
@@ -244,5 +244,5 @@ sequenceDiagram
     deactivate Container
     App ->> User: Return Container object
     Deactivate App
-    
+
 ```

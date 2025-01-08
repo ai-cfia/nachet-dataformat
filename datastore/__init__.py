@@ -3,13 +3,11 @@ This module is responsible for handling the user data in the database
 and the user container in the blob storage.
 """
 
-import json
 import datastore.db.queries.user as user
 import datastore.db.queries.group as group
 import datastore.db.queries.picture as picture
 import datastore.db.queries.container as container_db
 import datastore.db.metadata.picture_set as data_picture_set
-import datastore.blob as blob
 import datastore.blob.azure_storage_api as azure_storage
 from azure.storage.blob import BlobServiceClient, ContainerClient
 
@@ -426,12 +424,12 @@ class ContainerController:
             raise user.UserNotFoundError(
                 f"User not found based on the given id: {user_id}"
             )
-        if not (folder_id in self.model.folders.keys()):
+        if (folder_id not in list(self.model.folders.keys())):
             raise FolderCreationError(
                 f"Folder does not exist in the container: {folder_id}"
             )
         # Check if user has access to the container
-        if not user_id in self.model.user_ids:
+        if user_id not in self.model.user_ids:
             raise UserNotOwnerError(
                 f"User can't access this Container, user uuid :{user_id}, Container id : {self.id}"
             )

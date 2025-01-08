@@ -1,6 +1,5 @@
 from psycopg import Cursor
 from uuid import UUID
-from datastore.db.metadata.validator import is_valid_uuid
 
 
 class ContainerCreationError(Exception):
