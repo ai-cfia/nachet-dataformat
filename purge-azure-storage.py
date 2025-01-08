@@ -1,5 +1,3 @@
-
-
 import os
 
 import datastore.blob.__init__ as blob
@@ -23,11 +21,13 @@ def purge_azure_storage():
     This function purges the Azure storage account.
     """
     blob_service_client = blob.create_BlobServiceClient(NACHET_STORAGE_URL)
-    count =0
+    count = 0
     print("Purging Azure storage account")
     # loop through all the containers
     for container in blob_service_client.list_containers():
-        container_client = blob.create_container_client(blob_service_client, container.name)
+        container_client = blob.create_container_client(
+            blob_service_client, container.name
+        )
         name = container_client.container_name
         # check naming
         if name.startswith("test"):

@@ -1,21 +1,25 @@
-
 from psycopg import Cursor
 from uuid import UUID
 from datastore.db.metadata.validator import is_valid_uuid
 
+
 class GroupCreationError(Exception):
     pass
+
 
 class GroupNotFoundError(Exception):
     pass
 
+
 class GroupUserNotFoundError(Exception):
     pass
+
 
 class GroupAssignmentError(Exception):
     pass
 
-def create_group(cursor : Cursor, name : str, user_id : UUID) -> str:
+
+def create_group(cursor: Cursor, name: str, user_id: UUID) -> str:
     """
     This function creates a group in the database.
 
@@ -37,13 +41,16 @@ def create_group(cursor : Cursor, name : str, user_id : UUID) -> str:
             """
         cursor.execute(
             query,
-            (name,user_id),
+            (name, user_id),
         )
         return cursor.fetchone()[0]
     except Exception as e:
         raise GroupCreationError(f"Error: group {name} not created\n" + str(e))
-    
-def add_user_to_group(cursor : Cursor, user_id : UUID, group_id : UUID, assigned_by_id :UUID) -> None:
+
+
+def add_user_to_group(
+    cursor: Cursor, user_id: UUID, group_id: UUID, assigned_by_id: UUID
+) -> None:
     """
     This function adds a user to a group in the database.
 
@@ -64,22 +71,25 @@ def add_user_to_group(cursor : Cursor, user_id : UUID, group_id : UUID, assigned
             """
         cursor.execute(
             query,
-            (group_id,user_id,assigned_by_id),
+            (group_id, user_id, assigned_by_id),
         )
         if cursor.fetchone() is None:
             raise GroupAssignmentError
-        else :
+        else:
             if not is_valid_uuid(group_id):
                 raise GroupAssignmentError
     except GroupAssignmentError:
-        raise GroupAssignmentError(f"Error: user {user_id} not added to group {group_id}")
+        raise GroupAssignmentError(
+            f"Error: user {user_id} not added to group {group_id}"
+        )
     except Exception:
         raise Exception(f"Error: user {user_id} not added to group {group_id}")
-    
-def remove_user_from_group(cursor : Cursor, user_id : UUID, group_id : str) -> None:
+
+
+def remove_user_from_group(cursor: Cursor, user_id: UUID, group_id: str) -> None:
     """
     This function removes a user from a group in the database.
-    
+
     Parameters:
     - cursor (cursor): The cursor of the database.
     - user_id (str): The UUID of the user.
@@ -97,15 +107,16 @@ def remove_user_from_group(cursor : Cursor, user_id : UUID, group_id : str) -> N
             """
         cursor.execute(
             query,
-            (group_id,user_id),
+            (group_id, user_id),
         )
     except Exception:
         raise Exception(f"Error: user {user_id} not removed from group {group_id}")
-    
-def delete_group(cursor : Cursor, group_id : UUID) -> None:
+
+
+def delete_group(cursor: Cursor, group_id: UUID) -> None:
     """
     This function deletes a group from the database and all its children user_group.
-    
+
     Parameters:
     - cursor (cursor): The cursor of the database.
     - group_id (str): The UUID of the group.
@@ -126,11 +137,12 @@ def delete_group(cursor : Cursor, group_id : UUID) -> None:
         )
     except Exception:
         raise Exception(f"Error: group {group_id} not deleted")
-    
-def is_group_id(cursor : Cursor, group_id : UUID) -> bool:
+
+
+def is_group_id(cursor: Cursor, group_id: UUID) -> bool:
     """
     This function checks if a group exists in the database.
-    
+
     Parameters:
     - cursor (cursor): The cursor of the database.
     - group_id (str): The UUID of the group.
@@ -158,10 +170,11 @@ def is_group_id(cursor : Cursor, group_id : UUID) -> bool:
     except Exception:
         raise GroupNotFoundError(f"Error: group {group_id} not found")
 
-def is_user_in_group(cursor : Cursor, user_id : UUID, group_id : UUID) -> bool:
+
+def is_user_in_group(cursor: Cursor, user_id: UUID, group_id: UUID) -> bool:
     """
     This function checks if a user is in a group in the database.
-    
+
     Parameters:
     - cursor (cursor): The cursor of the database.
     - user_id (str): The UUID of the user.
@@ -181,16 +194,17 @@ def is_user_in_group(cursor : Cursor, user_id : UUID, group_id : UUID) -> bool:
             """
         cursor.execute(
             query,
-            (group_id,user_id),
+            (group_id, user_id),
         )
         return cursor.fetchone() is not None
     except Exception:
         raise GroupNotFoundError(f"Error: user {user_id} not found in group {group_id}")
-    
-def get_group_users(cursor : Cursor, group_id : UUID) -> dict:
+
+
+def get_group_users(cursor: Cursor, group_id: UUID) -> dict:
     """
     This function retrieves a group from the database.
-    
+
     Parameters:
     - cursor (cursor): The cursor of the database.
     - group_id (str): The UUID of the group.
@@ -214,11 +228,12 @@ def get_group_users(cursor : Cursor, group_id : UUID) -> dict:
         return cursor.fetchall()
     except Exception:
         raise GroupNotFoundError(f"Error: group {group_id} not found")
-    
-def get_group_name(cursor : Cursor, group_id : UUID) -> str:
+
+
+def get_group_name(cursor: Cursor, group_id: UUID) -> str:
     """
     This function retrieves a group name from the database.
-    
+
     Parameters:
     - cursor (cursor): The cursor of the database.
     - group_id (str): The UUID of the group.
@@ -242,11 +257,12 @@ def get_group_name(cursor : Cursor, group_id : UUID) -> str:
         return cursor.fetchone()[0]
     except Exception:
         raise GroupNotFoundError(f"Error: group {group_id} not found")
-    
-def get_group_by_name(cursor : Cursor, group_name : str) -> dict:
+
+
+def get_group_by_name(cursor: Cursor, group_name: str) -> dict:
     """
     This function retrieves a group from the database.
-    
+
     Parameters:
     - cursor (cursor): The cursor of the database.
     - group_name (str): The name of the group.
@@ -267,7 +283,8 @@ def get_group_by_name(cursor : Cursor, group_name : str) -> dict:
             """
         cursor.execute(
             query,
-            (group_name,),)
+            (group_name,),
+        )
         return cursor.fetchall()
     except Exception:
         raise GroupNotFoundError(f"Error: group {group_name} not found")

@@ -15,7 +15,6 @@ Additionally, the upcoming process are showcased with the expected files
 structure.
 
 ``` mermaid
-
 ---
 title: Data upload
 ---

@@ -70,7 +70,6 @@ flowchart LR;
 
 The Datastore module assures the CRUD workflow of the following high level entitites.
 
-
 ```mermaid
 ---
 title: Project Layers
@@ -159,7 +158,7 @@ classDiagram
     Client <.. ClientController: model
     ClientController<|-- User
     ClientController<|--Group
-```    
+```
 
 ## Database Architecture
 
@@ -231,11 +230,10 @@ erDiagram
     GROUPS ||--o{ CONTAINER_GROUP : "access to"
 ```
 
-
   For more detail on each app database architecture go check [Nachet
   Architecture](../../nachet/doc/nachet-architecture.md) and [Fertiscan
   Architecture](../../fertiscan/doc/fertiScan-architecture.md).
-  
+
 ### Global Needs
 
 - A User must be able to take a picture on the app, it must be saved in the

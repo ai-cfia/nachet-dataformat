@@ -1,10 +1,10 @@
 # Datastore module
 
 ## Module classes
+
 ```mermaid
+
 classDiagram
-
-
     class Folder {
         UUID id
         str name
@@ -86,11 +86,13 @@ classDiagram
     Client <.. ClientController: model
     ClientController<|-- User
     ClientController<|--Group
+
 ```    
 
 ## Module DB representation
 
 ```mermaid
+
 erDiagram
     USERS {
         UUID id PK
@@ -153,11 +155,13 @@ erDiagram
     USERS ||--o{ CONTAINER_USER : "individual access"
     CONTAINER ||--o{ CONTAINER_USER : "access to"
     GROUPS ||--o{ CONTAINER_GROUP : "access to"
+
 ```
 
 ## Create User
 
 ```mermaid
+
 sequenceDiagram
     actor User
     participant App as Datastore
@@ -204,11 +208,13 @@ sequenceDiagram
     
         Deactivate App
     end
+
 ```
 
 ## Create Container
 
 ```mermaid
+
 sequenceDiagram
     actor User
     participant App as Datastore
@@ -238,4 +244,5 @@ sequenceDiagram
     deactivate Container
     App ->> User: Return Container object
     Deactivate App
+    
 ```

@@ -2,19 +2,30 @@ from psycopg import Cursor
 from uuid import UUID
 from datastore.db.metadata.validator import is_valid_uuid
 
+
 class ContainerCreationError(Exception):
     pass
+
 
 class ContainerNotFoundError(Exception):
     pass
 
+
 class ContainerUserNotFoundError(Exception):
     pass
+
 
 class ContainerAssignmentError(Exception):
     pass
 
-def create_container(cursor : Cursor, name : str, user_id : UUID, is_public: bool = False, storage_prefix : str = "user") -> UUID:
+
+def create_container(
+    cursor: Cursor,
+    name: str,
+    user_id: UUID,
+    is_public: bool = False,
+    storage_prefix: str = "user",
+) -> UUID:
     """
     This function creates a container in the database.
 
@@ -38,13 +49,16 @@ def create_container(cursor : Cursor, name : str, user_id : UUID, is_public: boo
             """
         cursor.execute(
             query,
-            (name,user_id,is_public,storage_prefix,user_id),
+            (name, user_id, is_public, storage_prefix, user_id),
         )
         return cursor.fetchone()[0]
     except Exception as e:
         raise ContainerCreationError(f"Error: container {name} not created\n" + str(e))
 
-def has_user_sole_access_to_container(cursor : Cursor, user_id : UUID, container_id : UUID) -> bool:
+
+def has_user_sole_access_to_container(
+    cursor: Cursor, user_id: UUID, container_id: UUID
+) -> bool:
     """
     This function checks if a user has sole ownership of a container.
 
@@ -68,7 +82,7 @@ def has_user_sole_access_to_container(cursor : Cursor, user_id : UUID, container
             """
         cursor.execute(
             query,
-            (container_id,user_id),
+            (container_id, user_id),
         )
         result = cursor.fetchone()[0]
         if result > 0:
@@ -93,14 +107,19 @@ def has_user_sole_access_to_container(cursor : Cursor, user_id : UUID, container
             """
         cursor.execute(
             query,
-            (container_id,user_id),
+            (container_id, user_id),
         )
         result = cursor.fetchone()[0]
         return result == 0
     except Exception as e:
-        raise ContainerNotFoundError(f"Error: container {container_id} not found\n" + str(e))
+        raise ContainerNotFoundError(
+            f"Error: container {container_id} not found\n" + str(e)
+        )
 
-def has_user_access_to_container(cursor : Cursor, user_id : UUID, container_id : UUID) -> bool:
+
+def has_user_access_to_container(
+    cursor: Cursor, user_id: UUID, container_id: UUID
+) -> bool:
     """
     This function checks if a user has access to a container.
 
@@ -122,16 +141,21 @@ def has_user_access_to_container(cursor : Cursor, user_id : UUID, container_id :
                         container_user
                     WHERE
                         user_id = %s AND container_id = %s);
-            """        
+            """
         cursor.execute(
             query,
-            (user_id,container_id),
+            (user_id, container_id),
         )
         return cursor.fetchone()[0]
     except Exception as e:
-        raise ContainerUserNotFoundError(f"Error: user {user_id} not found in container {container_id}\n" + str(e))  
+        raise ContainerUserNotFoundError(
+            f"Error: user {user_id} not found in container {container_id}\n" + str(e)
+        )
 
-def has_user_group_access_to_container(cursor : Cursor, user_id : UUID, container_id : UUID) -> bool:
+
+def has_user_group_access_to_container(
+    cursor: Cursor, user_id: UUID, container_id: UUID
+) -> bool:
     """
     This function checks if a user has access to a container through a group.
 
@@ -163,13 +187,18 @@ def has_user_group_access_to_container(cursor : Cursor, user_id : UUID, containe
             """
         cursor.execute(
             query,
-            (user_id,container_id),
+            (user_id, container_id),
         )
         return cursor.fetchone()[0]
     except Exception as e:
-        raise ContainerUserNotFoundError(f"Error: user {user_id} not found in container {container_id}\n" + str(e))
+        raise ContainerUserNotFoundError(
+            f"Error: user {user_id} not found in container {container_id}\n" + str(e)
+        )
 
-def add_user_to_container(cursor : Cursor, user_id : UUID, container_id : UUID, assigned_by_id :UUID) -> None:
+
+def add_user_to_container(
+    cursor: Cursor, user_id: UUID, container_id: UUID, assigned_by_id: UUID
+) -> None:
     """
     This function adds a user to a container in the database.
 
@@ -190,12 +219,17 @@ def add_user_to_container(cursor : Cursor, user_id : UUID, container_id : UUID, 
             """
         cursor.execute(
             query,
-            (container_id,user_id,assigned_by_id,assigned_by_id),
+            (container_id, user_id, assigned_by_id, assigned_by_id),
         )
     except Exception as e:
-        raise ContainerAssignmentError(f"Error: user {user_id} not added to container {container_id}\n" + str(e))
-    
-def add_group_to_container(cursor : Cursor, group_id : UUID, container_id : UUID, user_id :UUID) -> None:
+        raise ContainerAssignmentError(
+            f"Error: user {user_id} not added to container {container_id}\n" + str(e)
+        )
+
+
+def add_group_to_container(
+    cursor: Cursor, group_id: UUID, container_id: UUID, user_id: UUID
+) -> None:
     """
     This function adds a group to a container in the database.
 
@@ -214,12 +248,15 @@ def add_group_to_container(cursor : Cursor, group_id : UUID, container_id : UUID
             """
         cursor.execute(
             query,
-            (container_id,group_id,user_id,user_id),
+            (container_id, group_id, user_id, user_id),
         )
     except Exception as e:
-        raise ContainerAssignmentError(f"Error: group {group_id} not added to container {container_id}\n" + str(e))
-    
-def get_container(cursor : Cursor,  container_id : UUID):
+        raise ContainerAssignmentError(
+            f"Error: group {group_id} not added to container {container_id}\n" + str(e)
+        )
+
+
+def get_container(cursor: Cursor, container_id: UUID):
     """
     This function gets the information of a container.
 
@@ -269,9 +306,12 @@ def get_container(cursor : Cursor,  container_id : UUID):
             raise ContainerNotFoundError(f"Error: container {container_id} not found")
         return container_id[0]
     except Exception as e:
-        raise ContainerNotFoundError(f"Error: container {container_id} not found\n" + str(e))
-    
-def delete_container(cursor : Cursor, container_id : UUID) -> None:
+        raise ContainerNotFoundError(
+            f"Error: container {container_id} not found\n" + str(e)
+        )
+
+
+def delete_container(cursor: Cursor, container_id: UUID) -> None:
     """
     This function deletes a container from the database.
 
@@ -291,9 +331,14 @@ def delete_container(cursor : Cursor, container_id : UUID) -> None:
             (container_id,),
         )
     except Exception as e:
-        raise ContainerNotFoundError(f"Error: container {container_id} not deleted\n" + str(e))
-    
-def delete_user_from_container(cursor : Cursor, user_id : UUID, container_id : UUID) -> None:
+        raise ContainerNotFoundError(
+            f"Error: container {container_id} not deleted\n" + str(e)
+        )
+
+
+def delete_user_from_container(
+    cursor: Cursor, user_id: UUID, container_id: UUID
+) -> None:
     """
     This function deletes a user from a container in the database.
 
@@ -311,12 +356,18 @@ def delete_user_from_container(cursor : Cursor, user_id : UUID, container_id : U
             """
         cursor.execute(
             query,
-            (container_id,user_id),
+            (container_id, user_id),
         )
     except Exception as e:
-        raise ContainerUserNotFoundError(f"Error: user {user_id} not removed from container {container_id}\n" + str(e))
-    
-def delete_group_from_container(cursor : Cursor, group_id : UUID, container_id : UUID) -> None:
+        raise ContainerUserNotFoundError(
+            f"Error: user {user_id} not removed from container {container_id}\n"
+            + str(e)
+        )
+
+
+def delete_group_from_container(
+    cursor: Cursor, group_id: UUID, container_id: UUID
+) -> None:
     """
     This function deletes a group from a container in the database.
 
@@ -334,12 +385,16 @@ def delete_group_from_container(cursor : Cursor, group_id : UUID, container_id :
             """
         cursor.execute(
             query,
-            (container_id,group_id),
+            (container_id, group_id),
         )
     except Exception as e:
-        raise ContainerAssignmentError(f"Error: group {group_id} not removed from container {container_id}\n" + str(e))
-    
-def get_user_containers(cursor:Cursor, user_id:UUID):
+        raise ContainerAssignmentError(
+            f"Error: group {group_id} not removed from container {container_id}\n"
+            + str(e)
+        )
+
+
+def get_user_containers(cursor: Cursor, user_id: UUID):
     """
     This function gets all the containers of a user.
 
@@ -381,12 +436,15 @@ def get_user_containers(cursor:Cursor, user_id:UUID):
         result = cursor.fetchall()
         if result is None:
             return []
-        else :
+        else:
             return result
     except Exception as e:
-        raise ContainerNotFoundError(f"Error: containers for user {user_id} not found\n" + str(e))
-    
-def get_group_containers(cursor:Cursor, group_id:UUID):
+        raise ContainerNotFoundError(
+            f"Error: containers for user {user_id} not found\n" + str(e)
+        )
+
+
+def get_group_containers(cursor: Cursor, group_id: UUID):
     """
     This function gets all the containers of a group.
 
@@ -428,12 +486,15 @@ def get_group_containers(cursor:Cursor, group_id:UUID):
         result = cursor.fetchall()
         if result is None:
             return []
-        else :
+        else:
             return result
     except Exception as e:
-        raise ContainerNotFoundError(f"Error: containers for group {group_id} not found\n" + str(e))
-    
-def get_user_group_containers(cursor:Cursor, user_id:UUID):
+        raise ContainerNotFoundError(
+            f"Error: containers for group {group_id} not found\n" + str(e)
+        )
+
+
+def get_user_group_containers(cursor: Cursor, user_id: UUID):
     """
     This function gets all the containers of a group.
 
@@ -464,12 +525,15 @@ def get_user_group_containers(cursor:Cursor, user_id:UUID):
         result = cursor.fetchall()
         if result is None:
             return []
-        else :
+        else:
             return result
     except Exception as e:
-        raise ContainerNotFoundError(f"Error: group containers for {user_id} not found\n" + str(e))
+        raise ContainerNotFoundError(
+            f"Error: group containers for {user_id} not found\n" + str(e)
+        )
 
-def is_a_container(cursor:Cursor, container_id:UUID):
+
+def is_a_container(cursor: Cursor, container_id: UUID):
     """
     This function checks if a container exists.
 
@@ -497,4 +561,6 @@ def is_a_container(cursor:Cursor, container_id:UUID):
         )
         return cursor.fetchone()[0]
     except Exception as e:
-        raise ContainerNotFoundError(f"Error: container {container_id} not found\n" + str(e))
+        raise ContainerNotFoundError(
+            f"Error: container {container_id} not found\n" + str(e)
+        )
