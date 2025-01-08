@@ -127,6 +127,37 @@ def delete_group(cursor : Cursor, group_id : UUID) -> None:
     except Exception:
         raise Exception(f"Error: group {group_id} not deleted")
     
+def is_group_id(cursor : Cursor, group_id : UUID) -> bool:
+    """
+    This function checks if a group exists in the database.
+    
+    Parameters:
+    - cursor (cursor): The cursor of the database.
+    - group_id (str): The UUID of the group.
+
+    Returns:
+    - bool: True if the group exists, False otherwise.
+    """
+    try:
+        query = """
+            SELECT 
+                EXISTS(
+                    SELECT 
+                        1
+                    FROM 
+                        groups
+                    WHERE 
+                        id = %s
+                )
+            """
+        cursor.execute(
+            query,
+            (group_id,),
+        )
+        return cursor.fetchone()[0]
+    except Exception:
+        raise GroupNotFoundError(f"Error: group {group_id} not found")
+
 def is_user_in_group(cursor : Cursor, user_id : UUID, group_id : UUID) -> bool:
     """
     This function checks if a user is in a group in the database.
@@ -170,7 +201,7 @@ def get_group_users(cursor : Cursor, group_id : UUID) -> dict:
     try:
         query = """
             SELECT 
-                user_id,
+                user_id
             FROM 
                 user_group
             WHERE 

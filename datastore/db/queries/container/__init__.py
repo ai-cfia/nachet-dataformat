@@ -62,7 +62,7 @@ def has_user_sole_access_to_container(cursor : Cursor, user_id : UUID, container
             SELECT 
                 COUNT(id)
             FROM
-                user_container
+                container_user
             WHERE
                 container_id = %s AND user_id != %s;
             """
@@ -206,17 +206,15 @@ def add_group_to_container(cursor : Cursor, group_id : UUID, container_id : UUID
     - user_id (str): The UUID of the user creating the entry.
     """
     try:
-        if assigned_by_id is None:
-            assigned_by_id = group_id
         query = """
             INSERT INTO  
-                container_group (container_id,group_id,user_id,user_id)
+                container_group (container_id,group_id,created_by_id,last_updated_by_id)
             VALUES
                 (%s,%s,%s,%s);
             """
         cursor.execute(
             query,
-            (container_id,group_id,assigned_by_id,assigned_by_id),
+            (container_id,group_id,user_id,user_id),
         )
     except Exception as e:
         raise ContainerAssignmentError(f"Error: group {group_id} not added to container {container_id}\n" + str(e))
@@ -240,8 +238,8 @@ def get_container(cursor : Cursor,  container_id : UUID):
                 c.storage_prefix,
                 c.storage_prefix || '-' || c.id as path,
                 c.created_by_id,
-                array_agg(cu.user_id),
-                array_agg(cg.group_id)
+                COALESCE(array_agg(cu.user_id) FILTER (WHERE cu.user_id IS NOT NULL) , '{}'),
+                COALESCE(array_agg(cg.group_id) FILTER (WHERE cg.group_id IS NOT NULL) , '{}')
             FROM
                 container as c
             LEFT JOIN

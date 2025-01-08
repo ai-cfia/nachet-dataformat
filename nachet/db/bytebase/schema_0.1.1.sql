@@ -27,8 +27,8 @@ create schema "nachet_0.1.1";
 
     Create table "nachet_0.1.1"."user_group" (
         "id" uuid NOT NULL DEFAULT uuid_.uuid_generate_v4() PRIMARY KEY,
-        "user_id" uuid NOT NULL REFERENCES "nachet_0.1.1".users(id),
-        "group_id" uuid NOT NULL REFERENCES "nachet_0.1.1".groups(id),
+        "user_id" uuid NOT NULL REFERENCES "nachet_0.1.1".users(id) ON DELETE CASCADE,
+        "group_id" uuid NOT NULL REFERENCES "nachet_0.1.1".groups(id) ON DELETE CASCADE,
         "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "assigned_by_id" uuid NOT NULL REFERENCES "nachet_0.1.1".users(id)
     );
@@ -40,7 +40,7 @@ create schema "nachet_0.1.1";
         "storage_prefix" text default 'user',
         "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        "created_by_id" uuid NOT NULL REFERENCES "nachet_0.1.1".users(id),
+        "created_by_id" uuid NOT NULL REFERENCES "nachet_0.1.1".users(id) ON DELETE SET NULL,
         "last_updated_by_id" uuid NOT NULL REFERENCES "nachet_0.1.1".users(id)
     );
 
