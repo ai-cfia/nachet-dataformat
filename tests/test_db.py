@@ -16,7 +16,7 @@ from PIL import Image
 import datastore.db.__init__ as db
 from datastore.db.metadata import picture_set as picture_set_data
 from datastore.db.metadata import validator
-from datastore.db.queries import picture, user
+from datastore.db.queries import picture, user, group, container
 from nachet.db.metadata import picture as picture_data
 
 DB_CONNECTION_STRING = os.environ.get("NACHET_DB_URL")
@@ -213,6 +213,61 @@ class test_user_functions(unittest.TestCase):
             user.get_container_url(mock_cursor, user_id)
 
 
+class test_group_functions(unittest.TestCase):
+    def setUp(self):
+        self.con = db.connect_db(DB_CONNECTION_STRING, DB_SCHEMA)
+        self.cursor = self.con.cursor()
+        db.create_search_path(self.con, self.cursor, DB_SCHEMA)
+        self.email = "test-gouv.ca"
+
+        self.user_id = user.register_user(self.cursor, self.email)
+
+    def tearDown(self):
+        self.con.rollback()
+        db.end_query(self.con, self.cursor)
+
+    def test_create_group(self):
+        """
+        This test checks if the create_group function returns a valid UUID
+        """
+        group_name = "test_group"
+        group_id = group.create_group(self.cursor,group_name, self.user_id)
+        
+        group_id_fetched = group.get_group_by_name(self.cursor, group_name)
+
+        self.assertTrue(
+            validator.is_valid_uuid(group_id), "The group_id is not a valid UUID"
+        )
+        self.assertEqual(str(group_id), str(group_id_fetched[0][0]), "The group_id is not the same as the fetched group_id")
+
+    def test_add_user_to_group(self):
+        """
+        This test checks if the add_member function adds a member to a group
+        """
+        group_name = "test_group"
+        group_id = group.create_group(self.cursor,group_name, self.user_id)
+
+        group.add_user_to_group(self.cursor, self.user_id, group_id, self.user_id)
+
+        self.assertTrue(group.is_user_in_group(self.cursor, self.user_id,group_id))
+
+    def test_remove_user_from_group(self):
+        """
+        This test checks if the remove_member function removes a member from a group
+        """
+        group_name = "test_group"
+        print(DB_SCHEMA)
+        group_id = group.create_group(self.cursor,group_name, self.user_id)
+
+        group.add_user_to_group(self.cursor, self.user_id, group_id, self.user_id)
+
+        self.assertTrue(group.is_user_in_group(self.cursor, self.user_id,group_id))
+
+        group.remove_user_from_group(self.cursor, self.user_id, group_id)
+
+        self.assertFalse(group.is_user_in_group(self.cursor, self.user_id,group_id))
+
+
 # --------------------  PICTURE FUNCTIONS --------------------
 class test_pictures_functions(unittest.TestCase):
     def setUp(self):
@@ -238,6 +293,9 @@ class test_pictures_functions(unittest.TestCase):
         )
         self.folder_name = "test_folder"
 
+        self.container_id = container.create_container(self.cursor, "test_container",self.user_id,False,"test-user")
+        
+
     def tearDown(self):
         self.con.rollback()
         db.end_query(self.con, self.cursor)
@@ -247,7 +305,7 @@ class test_pictures_functions(unittest.TestCase):
         This test checks if the new_picture_set function returns a valid UUID
         """
         picture_set_id = picture.new_picture_set(
-            self.cursor, self.picture_set, self.user_id, self.folder_name
+            self.cursor, self.picture_set, self.user_id, self.folder_name, self.container_id, None
         )
 
         self.assertTrue(
@@ -261,25 +319,6 @@ class test_pictures_functions(unittest.TestCase):
             "The folder name is not test_folder",
         )
 
-    def test_new_picture_set_no_name(self):
-        """
-        This test checks if the new_picture_set function returns a valid UUID if there is no specified name
-        """
-        picture_set_id = picture.new_picture_set(
-            self.cursor, self.picture_set, self.user_id
-        )
-
-        self.assertTrue(
-            validator.is_valid_uuid(picture_set_id),
-            "The picture_set_id is not a valid UUID",
-        )
-
-        self.assertEqual(
-            picture.get_picture_set_name(self.cursor, picture_set_id),
-            str(picture_set_id),
-            "As the folder_name is None the picture_set name should be the picture_set_id",
-        )
-
     def test_new_picture_set_error(self):
         """
         This test checks if the new_picture_set function raises an exception when the connection fails
@@ -287,7 +326,7 @@ class test_pictures_functions(unittest.TestCase):
         mock_cursor = MagicMock()
         mock_cursor.fetchone.side_effect = Exception("Connection error")
         with self.assertRaises(picture.PictureSetCreationError):
-            picture.new_picture_set(mock_cursor, self.picture_set, self.user_id)
+            picture.new_picture_set(mock_cursor, self.picture_set, self.user_id,None,self.container_id , None)
 
     def test_get_inexisting_picture_set(self):
         """
@@ -302,7 +341,7 @@ class test_pictures_functions(unittest.TestCase):
         """
         # prepare picture_set
         picture_set_id = picture.new_picture_set(
-            self.cursor, self.picture_set, self.user_id
+            self.cursor, self.picture_set, self.user_id,None,self.container_id ,None
         )
         # test the function
         picture_set = picture.get_picture_set(self.cursor, picture_set_id)
@@ -323,7 +362,7 @@ class test_pictures_functions(unittest.TestCase):
         """
         # prepare picture_set
         picture_set_id = picture.new_picture_set(
-            self.cursor, self.picture_set, self.user_id
+            self.cursor, self.picture_set, self.user_id, container_id=self.container_id ,
         )
 
         # prepare picture
@@ -343,7 +382,7 @@ class test_pictures_functions(unittest.TestCase):
         """
         # prepare picture_set
         picture_set_id = picture.new_picture_set(
-            self.cursor, self.picture_set, self.user_id
+            self.cursor, self.picture_set, self.user_id, container_id=self.container_id ,
         )
 
         # prepare picture
@@ -411,7 +450,7 @@ class test_pictures_functions(unittest.TestCase):
         for a picture_set that is not yet registered and one that is.
         """
         picture_set_id = picture.new_picture_set(
-            self.cursor, self.picture_set, self.user_id
+            self.cursor, self.picture_set, self.user_id, container_id=self.container_id ,
         )
 
         self.assertTrue(
@@ -438,7 +477,7 @@ class test_pictures_functions(unittest.TestCase):
         This test checks if the get_picture_set_name function returns the correct name of the picture_set
         """
         picture_set_id = picture.new_picture_set(
-            self.cursor, self.picture_set, self.user_id, self.folder_name
+            self.cursor, self.picture_set, self.user_id, self.folder_name, self.container_id ,None
         )
         name = picture.get_picture_set_name(self.cursor, picture_set_id)
         self.assertEqual(name, self.folder_name, "The folder name is not test_folder")
@@ -448,7 +487,7 @@ class test_pictures_functions(unittest.TestCase):
         This test checks if the get_picture_set_name function raises an exception when the connection fails
         """
         picture_set_id = picture.new_picture_set(
-            self.cursor, self.picture_set, self.user_id, self.folder_name
+            self.cursor, self.picture_set, self.user_id, self.folder_name, container_id=self.container_id , parent_id=None,
         )
         mock_cursor = MagicMock()
         mock_cursor.fetchone.side_effect = Exception("Connection error")
@@ -460,10 +499,10 @@ class test_pictures_functions(unittest.TestCase):
         This test checks if the get_user_picture_sets function returns all picture_sets of the user
         """
         picture_set_id1 = picture.new_picture_set(
-            self.cursor, self.picture_set, self.user_id, self.folder_name
+            self.cursor, self.picture_set, self.user_id, self.folder_name ,container_id=self.container_id , parent_id=None
         )
         picture_set_id2 = picture.new_picture_set(
-            self.cursor, self.picture_set, self.user_id, self.folder_name + "2"
+            self.cursor, self.picture_set, self.user_id, self.folder_name + "2", container_id=self.container_id , parent_id=None
         )
 
         picture_sets = picture.get_user_picture_sets(self.cursor, self.user_id)
@@ -503,7 +542,7 @@ class test_pictures_functions(unittest.TestCase):
         This test checks if the count_pictures function returns the correct number of pictures
         """
         picture_set_id = picture.new_picture_set(
-            self.cursor, self.picture_set, self.user_id, self.folder_name
+            self.cursor, self.picture_set, self.user_id, self.folder_name, container_id=self.container_id , parent_id=None
         )
 
         picture.new_picture_unknown(
@@ -521,7 +560,7 @@ class test_pictures_functions(unittest.TestCase):
         This test checks if the count_pictures function raises an exception when the connection fails
         """
         picture_set_id = picture.new_picture_set(
-            self.cursor, self.picture_set, self.user_id, self.folder_name
+            self.cursor, self.picture_set, self.user_id, self.folder_name, container_id=self.container_id , parent_id=None
         )
 
         picture.new_picture_unknown(
@@ -539,7 +578,7 @@ class test_pictures_functions(unittest.TestCase):
         This test checks if the get_picture_set_pictures function returns the correct pictures
         """
         picture_set_id = picture.new_picture_set(
-            self.cursor, self.picture_set, self.user_id, self.folder_name
+            self.cursor, self.picture_set, self.user_id, self.folder_name, container_id=self.container_id , parent_id=None
         )
 
         self.assertEqual(
@@ -571,7 +610,7 @@ class test_pictures_functions(unittest.TestCase):
         This test checks if the get_picture_set_pictures function raises an error if connection fails
         """
         picture_set_id = picture.new_picture_set(
-            self.cursor, self.picture_set, self.user_id, self.folder_name
+            self.cursor, self.picture_set, self.user_id, self.folder_name, container_id=self.container_id , parent_id=None
         )
 
         picture.new_picture_unknown(
@@ -586,7 +625,7 @@ class test_pictures_functions(unittest.TestCase):
 
     def test_change_picture_set_id(self):
         old_picture_set_id = picture.new_picture_set(
-            self.cursor, self.picture_set, self.user_id, self.folder_name
+            self.cursor, self.picture_set, self.user_id, self.folder_name, container_id=self.container_id , parent_id=None
         )
 
         picture.new_picture_unknown(
@@ -597,7 +636,7 @@ class test_pictures_functions(unittest.TestCase):
         )
 
         new_picture_set_id = picture.new_picture_set(
-            self.cursor, self.picture_set, self.user_id, self.folder_name
+            self.cursor, self.picture_set, self.user_id, self.folder_name, container_id=self.container_id , parent_id=None
         )
         old_picture_set = picture.get_picture_set_pictures(
             self.cursor, old_picture_set_id
@@ -634,7 +673,7 @@ class test_pictures_functions(unittest.TestCase):
 
     def test_change_picture_set_id_error(self):
         old_picture_set_id = picture.new_picture_set(
-            self.cursor, self.picture_set, self.user_id, self.folder_name
+            self.cursor, self.picture_set, self.user_id, self.folder_name, container_id=self.container_id , parent_id=None
         )
 
         picture.new_picture_unknown(
@@ -642,7 +681,7 @@ class test_pictures_functions(unittest.TestCase):
         )
 
         new_picture_set_id = picture.new_picture_set(
-            self.cursor, self.picture_set, self.user_id, self.folder_name
+            self.cursor, self.picture_set, self.user_id, self.folder_name, container_id=self.container_id , parent_id=None
         )
 
         mock_cursor = MagicMock()
@@ -655,7 +694,7 @@ class test_pictures_functions(unittest.TestCase):
 
     def test_change_picture_set_id_user_error(self):
         old_picture_set_id = picture.new_picture_set(
-            self.cursor, self.picture_set, self.user_id, self.folder_name
+            self.cursor, self.picture_set, self.user_id, self.folder_name, container_id=self.container_id , parent_id=None
         )
 
         picture.new_picture_unknown(
@@ -663,7 +702,7 @@ class test_pictures_functions(unittest.TestCase):
         )
 
         new_picture_set_id = picture.new_picture_set(
-            self.cursor, self.picture_set, self.user_id, self.folder_name
+            self.cursor, self.picture_set, self.user_id, self.folder_name, container_id=self.container_id , parent_id=None
         )
 
         with self.assertRaises(picture.PictureUpdateError):

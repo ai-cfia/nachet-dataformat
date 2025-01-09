@@ -15,7 +15,6 @@ Additionally, the upcoming process are showcased with the expected files
 structure.
 
 ``` mermaid
-
 ---
 title: Data upload
 ---
@@ -65,7 +64,7 @@ flowchart LR;
     DB[(Database)]
     blob[(Blob)]
     end
-    BE -- TODO --- MD
+    BE --> MD
     MD --> DB
     MD --> blob
 

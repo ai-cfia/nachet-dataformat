@@ -3,11 +3,27 @@ This module contains the function to build the picture_set metadata needed for t
 """
 from datetime import date
 from datastore.db.metadata import validator
-
+from pydantic import BaseModel
+from uuid import UUID
+from typing import Optional, List
 
 class PictureSetCreationError(Exception):
     pass
 
+class PictureSet(BaseModel):
+    picture_set_id: UUID
+    name : Optional[str]=None
+    link : str
+    pictures: Optional[List[UUID]]=[]
+    children: Optional[List['PictureSet']]=[]
+
+class PictureMetadata(BaseModel):
+    picture_id: Optional[UUID]=None
+    link: str
+    name: Optional[str]=None
+    upload_date: Optional[date]=date.today()
+    privacy_flag: Optional[bool]=False
+    description: Optional[str]=None
 
 def build_picture_set_metadata(user_id: str, nb_picture: int):
     """
@@ -27,9 +43,9 @@ def build_picture_set_metadata(user_id: str, nb_picture: int):
         upload_date=date.today(),
         edited_by=str(user_id),
         edit_date=date.today(),
-        change_log="picture_set created",
-        access_log="picture_set accessed",
         privacy_flag=False,
+        change_log="Picture set created",
+        access_log="Picture set created",
     )
 
     picture_set_data = validator.ProcessedPictureSet(

@@ -1,0 +1,130 @@
+{
+    "version": "0.1.4",
+    "date": "2024-02-26",
+    "pipelines": [
+        {
+            "models": [
+                "m-14of15seeds-6seedsmag"
+            ],
+            "model_name": "6 Seed Detector",
+            "pipeline_name": "6 Seed Detector",
+            "created_by": "Amir Ardalan Kalantari Dehaghi",
+            "creation_date": "2023-12-01",
+            "version": "1",
+            "description": "trained using 6 seed images per image of 14of15 tagarno",
+            "job_name": "neat_cartoon_k0y4m0vz",
+            "dataset": "",
+            "metrics": [],
+            "identifiable": []
+        },
+        {
+            "models": [
+                "seed-detector-1",
+                "swinv1-base-dataaugv2-1"
+            ],
+            "model_name": "Swin transformer",
+            "pipeline_name": "Swin transformer",
+            "created_by": "Amir Ardalan Kalantari Dehaghi",
+            "creation_date": "2023-12-01",
+            "version": "1",
+            "description": "Use a Swin transformer to classify the seeds",
+            "job_name": "",
+            "dataset": "",
+            "metrics": [],
+            "identifiable": []
+        },
+        {
+            "models": [
+                "test_model1"
+            ],
+            "model_name": "test_pipeline",
+            "pipeline_name": "test_pipeline",
+            "created_by": "",
+            "creation_date": "",
+            "version": "1",
+            "description": "Used for backend tests",
+            "job_name": "",
+            "dataset": "",
+            "metrics": [],
+            "identifiable": []
+        }
+    ],
+    "models": [
+        {
+            "task": "Object Detection",
+            "api_call_function": "nachet_6seeds",
+            "endpoint": "gAAAAABmAvAr7HcVGPklCdyoIYrBDRiHiA6-iRM_UjJ65K0lvaVrNrjiOUhWutFflWOJsShVh5WgMYv2rP5LmETgHW2-6cghCyXN_ZLcrOJDpc6IkxTvy9z6qRQN0P4Ie5ckV1ymw7IZzjOqeiGGAi__uafSj8X6O4LVsZeUYzzwyai4tYz8ens=",
+            "api_key": "gAAAAABmAvArbs0EVnDgOruSRg_whOdxLc__wfN1QacToallgfLJv7WgZEXRstKJ3sCzncypDeOwpl7sn8X3sfOm7I_fO1CgzJDNro9J59KE60Y-jngxhVpiEu8zElo_iNBQ59oZ-3oG",
+            "inference_function": null,
+            "content_type": "application/json",
+            "deployment_platform": "azureml-model-deployment",
+            "endpoint_name": "nachet-6seeds",
+            "model_name": "m-14of15seeds-6seedsmag",
+            "created_by": "Amir Ardalan Kalantari Dehaghi",
+            "creation_date": "2023-04-27",
+            "version": "1",
+            "description": "trained using 6 seed images per image of 14of15 tagarno",
+            "job_name": "neat_cartoon_k0y4m0vz",
+            "dataset": "",
+            "metrics": [],
+            "identifiable": []
+        },
+        {
+            "task": "Object Detection",
+            "api_call_function": "seed_detector",
+            "endpoint": "gAAAAABmAvAryWTht22gEvUZkEAE1dzQmF1BTfzR3XiUxi0ZFGwgxTYPyrdffVijXhHeyUDz8iOuIz2BjlDjz0X9zFt41UParDGt3YwcHsIpOMjnV_9bDVl7L-Z6CPQHziXIPK1x3YRcXGJNKILJtOjTLbt7i5hNDACrg9wjAlRi5w5ff_suo-U=",
+            "api_key": "gAAAAABmAvAry2nqnzRF1-gOufpKpBvvsM9_GIhzFjCVoz5u5SlW3mBPco_2AdNoxYA6xXc7e7h5yTLZvslxefEu7RUcPHSLZ6vhTw_KXcC_TPPPO8Vh7vkRbM8xvZnz7-DtlrQA-OC7",
+            "inference_function": "process_image_slicing",
+            "content_type": "application/json",
+            "deployment_platform": "azureml-model-deployment",
+            "endpoint_name": "seed-detector",
+            "model_name": "seed-detector-1",
+            "created_by": "Amir Ardalan Kalantari Dehaghi",
+            "creation_date": "2023-12-21",
+            "version": "1",
+            "description": "",
+            "job_name": "",
+            "dataset": "",
+            "metrics": [],
+            "identifiable": []
+        },
+        {
+            "task": "Classification",
+            "api_call_function": "swin",
+            "endpoint": "gAAAAABmAvArBmzLUSip8VhxhW144vPwp9nPGaa7cdd-ct5uUgkYZniz3eibE3bnNKLXmFPhGH2pRN6tkTkuD1t0ya9JIScfyJEvaPOVVenVqIoErKVcRzXEdcrkcRAOlHnzovFER7YW5b_-6AewPG4kG7IKy95XLQ==",
+            "api_key": "gAAAAABmAvArQDAFiQUEYZLrh5rKobEHYPiveP4VA7W1ouGKX7fTd2oHYcEDhHsDWU2QpSoVyqx23ut-6Pln1unFYQBsc_KX_NI1FgY5tbcLWEObnwquzExObpeBoer78wOv0szCXaQF",
+            "inference_function": "process_swin_result",
+            "content_type": "application/json",
+            "deployment_platform": "azureml-model-deployment",
+            "endpoint_name": "swin-endpoint",
+            "model_name": "swinv1-base-dataaugv2-1",
+            "created_by": "Amir Ardalan Kalantari Dehaghi",
+            "creation_date": "2023-12-01",
+            "version": "1",
+            "description": "",
+            "job_name": "",
+            "dataset": "",
+            "metrics": [],
+            "identifiable": []
+        },
+        {
+            "task": "Classification",
+            "api_call_function": "test",
+            "endpoint": "",
+            "api_key": "",
+            "inference_function": "",
+            "content_type": "application/json",
+            "deployment_platform": "",
+            "endpoint_name": "test_pipeline",
+            "model_name": "test_model1",
+            "created_by": "",
+            "creation_date": "",
+            "version": "1",
+            "description": "",
+            "job_name": "",
+            "dataset": "",
+            "metrics": [],
+            "identifiable": []
+        }
+    ]
+}
