@@ -19,7 +19,10 @@ from datastore.db.metadata import validator
 from datastore.db.queries import picture, user
 from nachet.db.metadata import picture as picture_data
 
-DB_CONNECTION_STRING = os.environ.get("NACHET_DB_URL")
+NACHET_DB_URL = os.getenv("NACHET_DB_URL")
+NACHET_DB_USER = os.getenv("NACHET_DB_USER")
+NACHET_DB_PASSWORD = os.getenv("NACHET_DB_PASSWORD")
+DB_CONNECTION_STRING = f"postgresql://{NACHET_DB_USER}:{NACHET_DB_PASSWORD}@{NACHET_DB_URL}"
 if DB_CONNECTION_STRING is None or DB_CONNECTION_STRING == "":
     raise ValueError("NACHET_DB_URL_TESTING is not set")
 

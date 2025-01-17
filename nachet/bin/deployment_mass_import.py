@@ -13,7 +13,7 @@ import datastore.db.metadata.validator as validator
 
 """ This script is used to import the missing metadata from an Azure container to the database """
 
-NACHET_DB_URL = os.getenv("NACHET_DB_URL")
+
 # Constants
 CONTAINER_URL = ""
 SEED_ID = ""

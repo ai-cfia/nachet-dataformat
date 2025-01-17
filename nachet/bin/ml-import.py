@@ -5,7 +5,10 @@ import sys
 import asyncio
 import os
 
-NACHET_DB_URL = os.environ.get("NACHET_DB_URL")
+NACHET_DB_URL = os.getenv("NACHET_DB_URL")
+NACHET_DB_USER = os.getenv("NACHET_DB_USER")
+NACHET_DB_PASSWORD = os.getenv("NACHET_DB_PASSWORD")
+DB_CONNECTION_STRING = f"postgresql://{NACHET_DB_USER}:{NACHET_DB_PASSWORD}@{NACHET_DB_URL}"
 if NACHET_DB_URL is None or NACHET_DB_URL == "":
     raise ValueError("NACHET_DB_URL is not set")
 
@@ -59,7 +62,7 @@ if __name__ == "__main__":
         file_path = sys.argv[1]
     else:
         raise Exception("Error: No file path provided as argument")
-    connection = db.connect_db(NACHET_DB_URL, NACHET_SCHEMA)
+    connection = db.connect_db(DB_CONNECTION_STRING, NACHET_SCHEMA)
     cur = db.cursor(connection)
     db.create_search_path(connection, cur, NACHET_SCHEMA)
     file = getFile(file_path)

@@ -38,7 +38,9 @@ if DEV_USER_EMAIL is None or DEV_USER_EMAIL == "":
     # raise ValueError("DEV_USER_EMAIL is not set")
     print("Warning: DEV_USER_EMAIL not set")
 
-NACHET_DB_URL = os.environ.get("NACHET_DB_URL")
+NACHET_DB_URL = os.getenv("NACHET_DB_URL")
+NACHET_DB_USER = os.getenv("NACHET_DB_USER")
+NACHET_DB_PASSWORD = os.getenv("NACHET_DB_PASSWORD")
 if NACHET_DB_URL is None or NACHET_DB_URL == "":
     raise ValueError("NACHET_DB_URL is not set")
 

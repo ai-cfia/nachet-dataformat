@@ -16,7 +16,10 @@ import datastore.__init__ as datastore
 import datastore.db.__init__ as db
 import datastore.db.metadata.validator as validator
 
-DB_CONNECTION_STRING = os.environ.get("NACHET_DB_URL")
+NACHET_DB_URL = os.getenv("NACHET_DB_URL")
+NACHET_DB_USER = os.getenv("NACHET_DB_USER")
+NACHET_DB_PASSWORD = os.getenv("NACHET_DB_PASSWORD")
+DB_CONNECTION_STRING = f"postgresql://{NACHET_DB_USER}:{NACHET_DB_PASSWORD}@{NACHET_DB_URL}"
 if DB_CONNECTION_STRING is None or DB_CONNECTION_STRING == "":
     raise ValueError("NACHET_DB_URL is not set")
 
